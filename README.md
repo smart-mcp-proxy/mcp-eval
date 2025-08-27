@@ -4,10 +4,11 @@ A comprehensive command-line tool for evaluating MCP (Model Context Protocol) se
 
 **🚀 Quick Start:**
 ```bash
-pip install -e .          # Install as package
-./restart-mcpproxy.sh     # Start Docker MCPProxy
-mcp-eval record scenarios/search_tools_simple.yaml    # Record baseline  
-mcp-eval compare scenarios/search_tools_simple.yaml --baseline baselines/search_tools_simple_baseline/search_tools_simple_baseline    # Run comparison
+cp .env.example .env                                    # Configure paths
+pip install -e .                                       # Install as package
+./testing/reset-mcpproxy.sh                            # Start Docker MCPProxy
+PYTHONPATH=src uv run python -m mcp_eval.cli record --scenario scenarios/search_tools_simple.yaml    # Record baseline  
+PYTHONPATH=src uv run python -m mcp_eval.cli compare --scenario scenarios/search_tools_simple.yaml --baseline baselines/search_tools_simple_baseline/search_tools_simple_baseline    # Run comparison
 ```
 
 ## Overview
@@ -39,8 +40,8 @@ Scenario Definition � Baseline Recording � Current Evaluation � Trajectory
 ## Prerequisites
 
 - **Python 3.11+** with uv package manager
-- **Docker** for MCPProxy isolation
-- **MCPProxy Go** project available at `/Users/user/repos/mcpproxy-go`
+- **Docker** for MCPProxy isolation  
+- **MCPProxy Go** project (configurable location)
 
 ## Installation
 
@@ -48,10 +49,58 @@ Scenario Definition � Baseline Recording � Current Evaluation � Trajectory
 # Clone and install
 git clone https://github.com/anthropics/mcp-eval.git
 cd mcp-eval
-pip install -e .
+uv sync
 
-# Setup Docker MCPProxy
-./restart-mcpproxy.sh
+# Install as development package
+pip install -e .
+```
+
+## Configuration
+
+The system is designed to be path-independent and configurable. Set up your environment:
+
+### 1. Environment Variables
+
+Copy the example environment file and configure paths:
+
+```bash
+cp .env.example .env
+# Edit .env with your specific paths
+```
+
+**Key configuration variables:**
+
+```bash
+# Path to MCPProxy source code (required for building proxy binary)
+MCPPROXY_SOURCE_PATH=../mcpproxy-go  # or absolute path to your mcpproxy-go clone
+
+# Your Anthropic API key (required for baseline recording)
+ANTHROPIC_API_KEY=your_api_key_here
+
+# Optional: Custom configuration paths
+MCP_SERVERS_CONFIG=./mcp_servers_test.json
+TEST_SESSION=test777-dind
+TEST_PORT=8081
+```
+
+### 2. MCPProxy Source
+
+Ensure MCPProxy source is available:
+
+```bash
+# Option 1: Clone next to this repository (recommended)
+cd ..
+git clone https://github.com/modelcontextprotocol/mcpproxy-go.git
+
+# Option 2: Set custom path in .env
+echo "MCPPROXY_SOURCE_PATH=/path/to/your/mcpproxy-go" >> .env
+```
+
+### 3. Initial Setup
+
+```bash
+# Setup Docker MCPProxy (will use your configured paths)
+./testing/reset-mcpproxy.sh
 ```
 
 ## Usage
@@ -61,8 +110,8 @@ pip install -e .
 **CRITICAL**: Always reset MCPProxy docker container state before each baseline recording or evaluation run to ensure reproducible results.
 
 ```bash
-# Simple restart using provided script
-./restart-mcpproxy.sh
+# Reset using the script (uses your configured paths)
+./testing/reset-mcpproxy.sh
 
 # Manual restart (if needed)
 cd testing/docker
@@ -76,10 +125,10 @@ Record a baseline execution that represents the expected behavior:
 
 ```bash
 # Reset MCPProxy state first (see step 1)
-./restart-mcpproxy.sh
+./testing/reset-mcpproxy.sh
 
 # Record baseline (output defaults to baselines/{scenario_name}_baseline)
-mcp-eval record --scenario scenarios/search_tools_simple.yaml
+PYTHONPATH=src uv run python -m mcp_eval.cli record --scenario scenarios/search_tools_simple.yaml
 
 # View generated HTML report
 open reports/search_tools_simple_baseline_*.html
@@ -91,10 +140,10 @@ Execute the current implementation and compare against the baseline:
 
 ```bash
 # Reset MCPProxy state first (see step 1)
-./restart-mcpproxy.sh
+./testing/reset-mcpproxy.sh
 
 # Run comparison (output defaults to comparison_results/{scenario_name}_comparison)
-mcp-eval compare --scenario scenarios/search_tools_simple.yaml \
+PYTHONPATH=src uv run python -m mcp_eval.cli compare --scenario scenarios/search_tools_simple.yaml \
   --baseline baselines/search_tools_simple_baseline/search_tools_simple_baseline
 
 # View results

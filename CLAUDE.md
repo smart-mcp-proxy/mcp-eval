@@ -232,25 +232,25 @@ claude-agent-project/
 ## MCP Proxy Integration
 
 ### Source Code Inspection
-- **MCP Proxy Source**: Available at `/Users/user/repos/mcpproxy-go`
+- **MCP Proxy Source**: Configurable via `MCPPROXY_SOURCE_PATH` environment variable (default: `../mcpproxy-go`)
 - **Read-Only Access**: Inspect source code for understanding, but DO NOT modify files in this directory
 - **Use Cases**: Understanding tool implementations, debugging issues, checking available operations
 
 ### Log Analysis
-- **Main Log**: `/Users/user/Library/Logs/mcpproxy/main.log` - General MCP proxy operations
-- **Server Logs**: `/Users/user/Library/Logs/mcpproxy/server-<upstream_server>.log` - Specific server logs
+- **Main Log**: `$MCPPROXY_MAIN_LOG_PATH` (default: `~/Library/Logs/mcpproxy/main.log`) - General MCP proxy operations
+- **Server Logs**: `$MCPPROXY_SERVER_LOGS_DIR/server-<upstream_server>.log` - Specific server logs
 - **Usage**: Grep these files to debug tool call failures, connection issues, or server errors
 
 Example log analysis commands:
 ```bash
 # Check main proxy activity
-grep "ERROR\|WARN" /Users/user/Library/Logs/mcpproxy/main.log | tail -20
+grep "ERROR\|WARN" ~/Library/Logs/mcpproxy/main.log | tail -20
 
-# Check specific server logs
-grep "quarantine" /Users/user/Library/Logs/mcpproxy/server-everything.log
+# Check specific server logs  
+grep "quarantine" ~/Library/Logs/mcpproxy/server-everything.log
 
 # Debug tool call failures
-grep "inspect_quarantined" /Users/user/Library/Logs/mcpproxy/main.log
+grep "inspect_quarantined" ~/Library/Logs/mcpproxy/main.log
 ```
 
 ### MCPProxy Docker Container Requirements
@@ -260,14 +260,14 @@ grep "inspect_quarantined" /Users/user/Library/Logs/mcpproxy/main.log
 #### Configuration Requirements:
 - **MCP Config**: `mcp_servers.json` must point to `http://localhost:8081/mcp` (not port 8080)
 - **Docker Container**: Use `mcpproxy-test-test777-dind` container running on port 8081
-- **Config File Location**: `/Users/user/repos/claude-eval-agents/claude-agent-project/mcp_servers.json`
+- **Config File Location**: `$MCP_SERVERS_CONFIG` (default: `./mcp_servers.json`)
 
 #### Pre-Run State Reset Protocol:
 Before each baseline record or evaluation run, **ALWAYS** reset MCPProxy state:
 
 ```bash
 # Reset MCPProxy docker container state
-cd /Users/user/repos/claude-eval-agents/claude-agent-project/testing/docker
+cd testing/docker
 TEST_SESSION=test777-dind docker compose down
 TEST_SESSION=test777-dind docker compose up -d
 

@@ -7,7 +7,7 @@
 set -e
 
 # Configuration
-MCPPROXY_SOURCE="${MCPPROXY_SOURCE:-/Users/user/repos/mcpproxy-go}"
+MCPPROXY_SOURCE="${MCPPROXY_SOURCE:-../mcpproxy-go}"
 BUILD_FORCE="${BUILD_FORCE:-false}"
 BUILD_CACHE="${BUILD_CACHE:-true}"
 

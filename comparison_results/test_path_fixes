@@ -1,0 +1,133 @@
+{
+  "report_type": "trajectory_comparison",
+  "generated_at": "2025-08-27T14:50:13.542010",
+  "scenario": {
+    "name": "List All Servers",
+    "description": "User wants to see all MCP servers",
+    "user_intent": "Show me all MCP servers",
+    "expected_trajectory": [
+      {
+        "action": "list_servers",
+        "tool": "mcp__mcpproxy__upstream_servers",
+        "args": {
+          "operation": "list"
+        }
+      }
+    ]
+  },
+  "evaluation_metrics": {
+    "overall_score": 1.0,
+    "tool_trajectory_score": 1.0,
+    "success_status_match": true,
+    "execution_time_diff_seconds": 0.0,
+    "tool_count_difference": 0,
+    "pass_threshold": 0.8,
+    "result": "PASS"
+  },
+  "current_execution": {
+    "success": true,
+    "execution_time": 0.0,
+    "tool_calls_count": 1,
+    "tool_calls": [
+      {
+        "tool_name": "mcp__mcpproxy__upstream_servers",
+        "tool_id": "toolu_01RNAoVaz5BThBHZ4VGdNpwV",
+        "tool_input": {
+          "operation": "list"
+        },
+        "timestamp": "2025-08-27T14:50:11.009392",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": [
+                {
+                  "type": "text",
+                  "text": "{\"servers\":[{\"name\":\"everything-2\",\"protocol\":\"stdio\",\"command\":\"/usr/bin/docker\",\"args\":[\"run\",\"-i\",\"--rm\",\"mcp/everything\"],\"enabled\":true,\"quarantined\":false,\"created\":\"2025-08-26T20:00:00Z\",\"updated\":\"2025-08-27T11:49:55.318495044Z\"}],\"total\":1}"
+                }
+              ]
+            }
+          ],
+          "is_error": null
+        },
+        "error": null
+      }
+    ],
+    "error": null
+  },
+  "baseline_execution": {
+    "scenario": "List All Servers",
+    "execution_time": "2025-08-27T12:24:29.987505",
+    "tool_calls_count": 1,
+    "tool_calls": [
+      {
+        "tool_name": "mcp__mcpproxy__upstream_servers",
+        "tool_id": "toolu_01QCQmfyyCJDpxJG85q556mV",
+        "tool_input": {
+          "operation": "list"
+        },
+        "timestamp": "2025-08-27T12:24:36.090460",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": [
+                {
+                  "type": "text",
+                  "text": "{\"servers\":[{\"name\":\"everything-2\",\"protocol\":\"stdio\",\"command\":\"/usr/bin/docker\",\"args\":[\"run\",\"-i\",\"--rm\",\"mcp/everything\"],\"enabled\":true,\"quarantined\":false,\"created\":\"2025-08-26T20:00:00Z\",\"updated\":\"2025-08-27T09:24:25.132310419Z\"}],\"total\":1}"
+                }
+              ]
+            }
+          ],
+          "is_error": null
+        },
+        "error": null
+      }
+    ]
+  },
+  "detailed_comparison": {
+    "trajectory_matches": 1.0,
+    "current_tool_count": 1,
+    "baseline_tool_count": 1,
+    "tool_differences": {
+      "tools_added": [],
+      "tools_removed": [],
+      "tools_common": [
+        "mcp__mcpproxy__upstream_servers"
+      ],
+      "parameter_differences": []
+    },
+    "execution_status_comparison": {
+      "current": "SUCCESS",
+      "baseline": "SUCCESS"
+    },
+    "timestamp": "2025-08-27T14:50:13.541005"
+  },
+  "per_invocation_results": [
+    {
+      "invocation": 1,
+      "score": 1.0,
+      "details": "Invocation 1: EXACT MATCH",
+      "actual_tools": [
+        {
+          "name": "mcp__mcpproxy__upstream_servers",
+          "args": {
+            "operation": "list"
+          },
+          "similarity": 1.0
+        }
+      ],
+      "expected_tools": [
+        {
+          "name": "mcp__mcpproxy__upstream_servers",
+          "args": {
+            "operation": "list"
+          }
+        }
+      ]
+    }
+  ],
+  "recommendations": [
+    "Excellent trajectory match! Consider this execution as a new baseline."
+  ]
+}

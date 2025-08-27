@@ -34,3 +34,8 @@ mcp-eval = "mcp_eval.cli:cli"
 Homepage = "https://github.com/anthropics/mcp-eval"
 Repository = "https://github.com/anthropics/mcp-eval"
 Issues = "https://github.com/anthropics/mcp-eval/issues"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+]

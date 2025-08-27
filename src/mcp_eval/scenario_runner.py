@@ -37,7 +37,9 @@ class FailureAwareScenarioRunner:
     
     def _get_mcpproxy_git_info(self) -> Dict[str, Any]:
         """Get git hash and commit info for mcpproxy-go project."""
-        mcpproxy_path = Path("/Users/user/repos/mcpproxy-go")
+        import os
+        mcpproxy_source = os.getenv("MCPPROXY_SOURCE_PATH", "../mcpproxy-go")
+        mcpproxy_path = Path(mcpproxy_source).expanduser().resolve()
         
         if not mcpproxy_path.exists():
             return {
@@ -106,8 +108,9 @@ class FailureAwareScenarioRunner:
         try:
             console.print(f"🔄 [yellow]Restarting MCPProxy with config: {config_file}[/yellow]")
             
-            # Change to Docker directory
-            docker_dir = Path("/Users/user/repos/claude-eval-agents/claude-agent-project/testing/docker")
+            # Change to Docker directory (relative to project root)
+            project_root = Path(__file__).parent.parent.parent  # Go up from src/mcp_eval/ to project root
+            docker_dir = project_root / "testing" / "docker"
             if not docker_dir.exists():
                 console.print(f"❌ [red]Docker directory not found: {docker_dir}[/red]")
                 return False

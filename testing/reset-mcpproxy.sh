@@ -15,8 +15,9 @@ TEST_SESSION="${TEST_SESSION:-$(date +%s)}"
 TEST_PORT="${TEST_PORT:-8081}"
 METRICS_PORT="${METRICS_PORT:-9091}"
 LOG_LEVEL="${LOG_LEVEL:-info}"
-MCPPROXY_SOURCE="${MCPPROXY_SOURCE:-/Users/user/repos/mcpproxy-go}"
-MCP_SERVERS_CONFIG="/Users/user/repos/claude-eval-agents/claude-agent-project/mcp_servers_test.json"
+MCPPROXY_SOURCE="${MCPPROXY_SOURCE:-../mcpproxy-go}"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+MCP_SERVERS_CONFIG="${MCP_SERVERS_CONFIG:-$PROJECT_ROOT/mcp_servers_test.json}"
 
 # Color output
 RED='\033[0;31m'

@@ -58,3 +58,5 @@ conversation_*.json
 # MCP
 mcp_debug.log
 reports/
+baselines/
+compare_results/

@@ -1,7 +1,0 @@
-USER: Show me all MCP servers
-AGENT: I'll help you with this task.
-TOOL_CALL: mcp__mcpproxy__upstream_servers({'operation': 'list'})
-TOOL_RESULT: [{'type': 'text', 'text': '{"servers":[{"name":"everything-2","protocol":"stdio","command":"/usr/bin/docker","args":["run","-i","--rm","mcp/everything"],"enabled":true,"quarantined":false,"created":"2025-08-26T20:00:00Z","updated":"2025-08-27T10:59:23.71809896Z"}],"total":1}'}]
-AGENT: Tool executed successfully.
-
-EVALUATION: ✅ SUCCESS - All tools executed successfully

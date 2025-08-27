@@ -1,7 +1,0 @@
-USER: Show me which servers are quarantined
-AGENT: I'll help you with this task.
-TOOL_CALL: mcp__mcpproxy__quarantine_security({'operation': 'list_quarantined'})
-TOOL_RESULT: [{'type': 'text', 'text': '{"servers":[{"name":"everything-comprehensive","protocol":"stdio","command":"/usr/bin/docker","args":["run","-i","--rm","mcp/everything"],"enabled":true,"quarantined":true,"created":"2025-08-26T20:00:00Z","updated":"2025-08-27T09:33:06.817563716Z"}],"total":1}'}]
-AGENT: Tool executed successfully.
-
-EVALUATION: ✅ SUCCESS - All tools executed successfully

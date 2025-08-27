@@ -2,18 +2,20 @@
 
 A comprehensive command-line tool for evaluating MCP (Model Context Protocol) server performance and tool effectiveness from a user perspective. The system executes real-world scenarios, records detailed interaction logs, compares actual vs expected trajectories, and provides quantitative metrics with visual HTML reports.
 
-**🚀 Quick Start:**
+## 🚀 Quick Start
+
 ```bash
 cp .env.example .env                                    # Configure paths
 pip install -e .                                       # Install as package
 ./testing/reset-mcpproxy.sh                            # Start Docker MCPProxy
-PYTHONPATH=src uv run python -m mcp_eval.cli record --scenario scenarios/search_tools_simple.yaml    # Record baseline  
-PYTHONPATH=src uv run python -m mcp_eval.cli compare --scenario scenarios/search_tools_simple.yaml --baseline baselines/search_tools_simple_baseline/search_tools_simple_baseline    # Run comparison
+PYTHONPATH=src uv run python -m mcp_eval.cli record --scenario scenarios/search_tools_simple.yaml
+PYTHONPATH=src uv run python -m mcp_eval.cli compare --scenario scenarios/search_tools_simple.yaml --baseline baselines/search_tools_simple_baseline/search_tools_simple_baseline
 ```
 
 ## Overview
 
 The MCP Evaluation System helps developers and researchers:
+
 - **Evaluate MCP Server Performance**: Test real-world scenarios against MCP proxy and individual servers
 - **Measure Tool Effectiveness**: Quantify how well MCP tools execute user intents
 - **Trajectory Analysis**: Compare actual tool usage patterns vs expected patterns using dialog trajectory metrics
@@ -33,14 +35,14 @@ The MCP Evaluation System helps developers and researchers:
 ### Evaluation Flow
 
 ```
-Scenario Definition � Baseline Recording � Current Evaluation � Trajectory Comparison � HTML Report
+Scenario Definition → Baseline Recording → Current Evaluation → Trajectory Comparison → HTML Report
      (YAML)              (Docker)            (Docker)           (Metrics)          (Visual)
 ```
 
 ## Prerequisites
 
 - **Python 3.11+** with uv package manager
-- **Docker** for MCPProxy isolation  
+- **Docker** for MCPProxy isolation
 - **MCPProxy Go** project (configurable location)
 
 ## Installation
@@ -158,6 +160,7 @@ open reports/search_tools_simple_comparison_*.html
 - **Comparison Reports**: Side-by-side current vs baseline execution with trajectory metrics
 
 **Key Metrics:**
+
 - **Tool Trajectory Score**: Sophisticated similarity-based comparison of MCP tool usage patterns (0.0-1.0)
 - **Per-Invocation Analysis**: Detailed similarity scores for each individual tool call with visual comparison
 - **MCP-Only Filtering**: Focuses evaluation on MCP tool calls only (excludes TodoWrite, Bash, etc.)
@@ -173,8 +176,9 @@ The MCP Evaluation System uses sophisticated similarity calculations to compare 
 ### MCP-Only Focus
 
 The system filters comparisons to **only MCP tool calls** (tools with `mcp__` prefix), excluding framework tools like:
+
 - `TodoWrite` (task management)
-- `Bash` (command execution)  
+- `Bash` (command execution)
 - `Read`, `Write`, `Edit` (file operations)
 
 This ensures evaluation focuses on actual MCP server interactions rather than agent implementation details.
@@ -186,268 +190,166 @@ This ensures evaluation focuses on actual MCP server interactions rather than ag
 Each tool call comparison evaluates:
 
 1. **Tool Name Matching**: Must be identical (different tools = 0.0 similarity)
-2. **Argument Similarity**: Sophisticated comparison of tool parameters
-
-#### Enhanced Dialog Trajectory Comparison with Argument Similarity
-
-Traditional trajectory evaluation relied on exact matching, which created brittle tests that failed on minor variations. Our enhanced approach introduces sophisticated argument similarity metrics that provide more robust and meaningful evaluation.
-
-**Problem with Exact Matching:**
-```
-Baseline: retrieve_tools(query="environment variables configuration")  
-Current:  retrieve_tools(query="env vars configuration")
-Result:   0.0 (FAIL) - Despite same intent and tool usage
-```
-
-**Solution with Argument Similarity:**
-```
-Baseline: retrieve_tools(query="environment variables configuration")  
-Current:  retrieve_tools(query="env vars configuration")
-Result:   0.53 (PARTIAL MATCH) - Recognizes similar intent
-```
-
-#### Multi-Level Argument Similarity Calculation
-
-Arguments are compared using a weighted approach that evaluates both structure and content:
-
-**Weighted Similarity Formula:**
-```
-arg_similarity = (key_similarity × 0.3) + (value_similarity × 0.7)
-```
-
-- **Key Similarity (30%)**: Structural compatibility - ensures arguments have similar parameter shapes
-- **Value Similarity (70%)**: Content semantic similarity - evaluates actual parameter values
-
-This weighting prioritizes content similarity while ensuring structural compatibility, allowing for natural language variations in queries and parameters.
-
-#### Value Similarity Algorithms
-
-- **String Values**: Word-based Jaccard similarity (case-insensitive)
-  ```
-  "hello world" vs "hello there" → 0.33 (1 common word / 3 total words)
-  ```
-
-- **Numeric Values**: Distance-based similarity with configurable max difference
-  ```
-  10 vs 15 → 0.995 (small difference, high similarity)
-  ```
-
-- **JSON Objects**: Character frequency-based cosine similarity
-  ```
-  {"a": 1, "b": 2} vs {"a": 1, "c": 3} → ~0.7 (structural similarity)
-  ```
+2. **Argument Similarity**: 30% key structure + 70% value similarity
+   - **Key Similarity**: Jaccard similarity of argument keys
+   - **Value Similarity**: Multi-method comparison:
+     - String values: Word intersection with Jaccard similarity
+     - Numeric values: Distance-based with configurable thresholds
+     - JSON objects: Cosine similarity using character frequency vectors
 
 #### Trajectory Similarity
 
-The overall trajectory score is calculated as:
-1. Filter both trajectories to MCP-only tools
-2. Compare tools at each position (order matters)
-3. Missing tools at any position score 0.0
-4. Return average similarity across all positions
+The overall trajectory score averages individual tool call similarities, providing a single metric for execution quality assessment.
 
-### Benefits of Enhanced Argument Similarity in Dialog Trajectories
+### Algorithms Used
 
-#### Robust Natural Language Query Evaluation
+- **Jaccard Similarity**: For set-based comparisons (keys, word sets)
+- **String Intersection**: Word-level comparison for natural language queries
+- **Distance-Based Numeric**: Configurable thresholds for numeric variations
+- **Cosine Similarity**: Character frequency analysis for complex JSON structures
 
-The argument similarity metrics handle common variations in natural language queries that should be considered semantically equivalent:
+## Available Scenarios
 
-**Query Variations (High Similarity ~0.6-0.8):**
-```
-"find environment tools"     vs "search environment utilities"
-"GitHub repository setup"    vs "GitHub repo configuration" 
-"add new server connection"  vs "create server endpoint"
-```
+The system includes 19+ comprehensive test scenarios covering all major MCPProxy functionality:
 
-**Parameter Normalization:**
-```
-{limit: 10, offset: 20}     vs {limit: "10", offset: "20"}
-# String vs numeric parameters → 0.9 similarity (type-aware comparison)
+### Core Functionality
+- `list_all_servers` - Server discovery
+- `basic_tool_search` - Tool discovery with BM25 search
+- `list_quarantined_servers` - Security quarantine listing
 
-{query: "env", max: 5}      vs {query: "env", limit: 5}  
-# Different key names → 0.5 similarity (partial structural match)
-```
+### Server Management
+- `add_simple_server` - Add new MCP servers
+- `remove_server` - Remove existing servers
+- `check_server_logs` - Server log inspection
 
-#### Dialog Flow Resilience 
+### Security Operations
+- `inspect_quarantined_server` - Detailed security analysis
+- `server_status_check` - Configuration validation
 
-Traditional exact matching failed when agents used slightly different phrasing or parameter ordering. Enhanced similarity enables:
+### Registry Operations
+- `list_registries` - Registry discovery
+- `search_docker_registry` - Docker registry search
 
-- **Semantic Equivalence Recognition**: "environment variables" ≈ "env vars"
-- **Parameter Order Independence**: {a:1, b:2} ≈ {b:2, a:1} 
-- **Type-Tolerant Comparison**: numeric vs string parameters with same values
-- **Partial Match Scoring**: Different approaches to same intent get partial credit
+### GitHub Integration
+- `github_tool_discovery` - GitHub tool discovery
+- And more...
 
-#### Real-World Dialog Trajectory Examples
+## CLI Reference
 
-**Scenario: Environment Variable Tool Search**
-
-*Traditional Exact Matching Results:*
-```
-Baseline: retrieve_tools(query="environment variables management")
-Run 1:    retrieve_tools(query="environment variables management") → 1.0 ✅
-Run 2:    retrieve_tools(query="env variable management")         → 0.0 ❌
-Run 3:    retrieve_tools(query="environment vars config")        → 0.0 ❌
-```
-**Success Rate: 33% (very brittle)**
-
-*Enhanced Argument Similarity Results:*
-```
-Baseline: retrieve_tools(query="environment variables management")
-Run 1:    retrieve_tools(query="environment variables management") → 1.0 ✅  (Perfect)
-Run 2:    retrieve_tools(query="env variable management")         → 0.67 ✅ (Good)
-Run 3:    retrieve_tools(query="environment vars config")        → 0.53 ✅ (Acceptable)
-```
-**Success Rate: 100% (robust to natural variations)**
-
-### Visual Similarity Display
-
-HTML reports show similarity scores in multiple places:
-
-1. **Overall Summary**: Total trajectory score and overall evaluation score
-2. **Per-Invocation Analysis**: Detailed breakdown with individual tool similarity scores
-3. **Tool Call Headers**: Color-coded similarity badges on each tool call
-4. **Side-by-Side Comparison**: Visual comparison with similarity indicators
-
-### Example Similarity Scenarios
-
-**Perfect Match (1.0):**
-```
-Current:  mcp__search_tools(query="environment variables")
-Baseline: mcp__search_tools(query="environment variables")
-```
-
-**Partial Match (0.5-0.9):**
-```
-Current:  mcp__search_tools(query="env vars configuration")  
-Baseline: mcp__search_tools(query="environment variables")
-# Same tool, similar arguments → ~0.67
-```
-
-**No Match (0.0):**
-```
-Current:  mcp__list_registries()
-Baseline: mcp__search_tools(query="environment")  
-# Different tools → 0.0
-```
-
-## Scenario Format
-
-Scenarios are defined in YAML format:
-
-```yaml
-name: "Search MCP Tools (Simple)"
-description: "Simple test to find environment-related tools"
-enabled: true
-user_intent: "Find tools for environment variables"
-expected_trajectory:
-  - action: "search_tools"
-    tool: "mcp__mcpproxy__retrieve_tools"
-    args:
-      query: "environment"
-success_criteria:
-  - "Found environment-related tools"
-  - "Retrieved tool descriptions"
-```
-
-## Docker Isolation Strategy
-
-### Why Docker?
-
-MCPProxy runs in Docker containers for several critical reasons:
-
-1. **State Isolation**: Each test run starts with a clean MCPProxy state, preventing cross-contamination between evaluations
-2. **Reproducibility**: Consistent environment across different machines and test runs
-3. **Version Control**: MCPProxy git hash is captured and displayed in reports for debugging version-specific issues
-4. **Resource Management**: Container limits prevent runaway processes from affecting the host system
-5. **Network Isolation**: Controlled network environment for testing server connections
-6. **Deterministic Testing**: Claude agent configured with temperature=0.0 via settings file for minimal response variation and reproducible baselines
-
-### Container Architecture
-
-```
-Host Machine
-   Claude Agent (Python)     HTTP   � MCPProxy Container :8081
-   Test Scenarios (YAML)                    
-   HTML Reports                              
-                                              
-MCPProxy Container (Docker-in-Docker)         
-   MCPProxy Go Binary                        
-   MCP Server: everything-2                
-   Tool Discovery & Indexing
-```
-
-## Configuration
-
-### MCP Server Configuration (`mcp_servers.json`)
-
-```json
-{
-  "mcpServers": {
-    "mcpproxy": {
-      "type": "http",
-      "url": "http://localhost:8081/mcp"
-    }
-  }
-}
-```
-
-### Docker Configuration (`testing/docker/docker-compose.yml`)
-
-- **Container Name**: `mcpproxy-test-test777-dind`
-- **Ports**: 8081:8080 (HTTP), 9091:9090 (Metrics)
-- **Session**: `test777-dind` for isolation
-- **Health Checks**: Automatic container health monitoring
-
-## Advanced Usage
-
-### Batch Evaluation
+### Commands
 
 ```bash
-# Run multiple scenarios
-mcp-eval batch \
-  --scenarios scenarios/ \
-  --output reports/batch_results
+# Record a baseline execution
+PYTHONPATH=src uv run python -m mcp_eval.cli record --scenario <scenario_file> [--output <output_dir>]
+
+# Compare against baseline
+PYTHONPATH=src uv run python -m mcp_eval.cli compare --scenario <scenario_file> --baseline <baseline_dir> [--output <output_dir>]
+
+# Run multiple scenarios in batch
+PYTHONPATH=src uv run python -m mcp_eval.cli batch --scenarios <scenarios_dir> [--output <output_dir>]
 ```
 
-### Tool Discovery
+### Options
 
-The system automatically discovers available MCP tools before each scenario execution and includes this information in HTML reports.
+- `--scenario`: Path to YAML scenario file
+- `--baseline`: Path to baseline directory for comparison
+- `--output`: Output directory for results
+- `--mcp-config`: MCP servers configuration file (default: mcp_servers.json)
 
-### Git Version Tracking
+## Development
 
-Each baseline and comparison includes MCPProxy git hash information for debugging version-specific behavior changes.
+### Running Tests
+
+```bash
+# Run all unit tests
+PYTHONPATH=src uv run python -m pytest tests/ -v
+
+# Run specific test file
+PYTHONPATH=src uv run python -m pytest tests/test_similarity.py -v
+```
+
+### Adding New Scenarios
+
+1. Create a YAML file in `scenarios/` directory
+2. Define user intent, expected trajectory, and success criteria
+3. Optionally create custom config file in `configs/`
+4. Test with baseline recording
+
+Example scenario structure:
+
+```yaml
+enabled: true
+name: "My Test Scenario"
+description: "Test description"
+config_file: "configs/minimal_config.json"
+user_intent: "What the user wants to accomplish"
+
+expected_trajectory:
+  - action: "tool_action"
+    tool: "mcp__tool_name"
+    args:
+      parameter: "value"
+
+success_criteria:
+  - "keyword_in_response"
+  - "expected_behavior"
+
+tags:
+  - "category"
+```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Port Conflicts**: Ensure port 8081 is available and mcp_servers.json points to correct port
-2. **Docker Not Running**: Verify Docker daemon is running and accessible
-3. **Module Import Errors**: If running into import issues, ensure package is installed with `pip install -e .`
-4. **Container Health**: Check `docker logs mcpproxy-test-test777-dind` for MCPProxy status
+1. **MCPProxy container fails to start**
+   ```bash
+   # Check Docker is running
+   docker info
+   
+   # Verify MCPProxy source exists
+   ls $MCPPROXY_SOURCE_PATH
+   
+   # Check container logs
+   cd testing/docker && docker compose logs
+   ```
 
-### Debug Commands
+2. **Tool discovery fails**
+   - This is normal and handled gracefully
+   - Tool discovery failure doesn't affect scenario execution
+   - MCP tools remain functional during conversations
+
+3. **Permission errors**
+   ```bash
+   # Ensure scripts are executable
+   chmod +x testing/reset-mcpproxy.sh
+   chmod +x testing/build-mcpproxy.sh
+   ```
+
+### Debug Mode
+
+Enable detailed logging by setting environment variables:
 
 ```bash
-# Check container status
-docker ps --filter "name=mcpproxy"
-
-# View container logs
-docker logs mcpproxy-test-test777-dind --tail 20
-
-# Test MCPProxy connectivity
-curl -f http://localhost:8081/health || echo "MCPProxy not responding"
-
-# Verify available tools
-grep "total_tools" $(docker logs mcpproxy-test-test777-dind 2>&1 | tail -20)
+export LOG_LEVEL=debug
+export PYTHONPATH=src
+uv run python -m mcp_eval.cli record --scenario scenarios/your_scenario.yaml
 ```
 
 ## Contributing
 
-1. Always reset MCPProxy state before testing changes
-2. Update baselines when expected behavior changes
-3. Include HTML report screenshots in PR descriptions
-4. Maintain backward compatibility in scenario formats
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new functionality
+4. Ensure all tests pass
+5. Submit a pull request
 
 ## License
 
-This project is part of the Claude Code evaluation framework.
+MIT License - see LICENSE file for details.
+
+## Support
+
+- **Issues**: Report bugs and feature requests via GitHub Issues
+- **Documentation**: See `CLAUDE.md` for detailed implementation notes
+- **Examples**: Check `scenarios/` directory for usage examples

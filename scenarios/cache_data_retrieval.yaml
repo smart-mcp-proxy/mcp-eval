@@ -1,0 +1,21 @@
+enabled: true
+name: "Cache Data Retrieval"
+description: "User retrieves paginated data from cache"
+config_file: "configs/minimal_config.json"
+user_intent: "Get more results from cache key 'xyz123' starting from item 50"
+
+expected_trajectory:
+  - action: "read_cache"
+    tool: "mcp__mcpproxy__read_cache"
+    args:
+      key: "xyz123"
+      offset: 50
+
+success_criteria:
+  - "mcp__mcpproxy__read_cache"
+  - "xyz123"
+  - "50"
+
+tags:
+  - "cache"
+  - "pagination"

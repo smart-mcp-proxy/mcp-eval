@@ -1,0 +1,21 @@
+enabled: true
+name: "Browse Pulse Registry"
+description: "User browses servers from Pulse MCP registry"
+config_file: "configs/minimal_config.json"
+user_intent: "Show me servers from the Pulse MCP registry"
+
+expected_trajectory:
+  - action: "search_servers"
+    tool: "mcp__mcpproxy__search_servers"
+    args:
+      registry: "pulse"
+
+success_criteria:
+  - "mcp__mcpproxy__search_servers"
+  - "pulse"
+  - "registry"
+
+tags:
+  - "registry"
+  - "pulse"
+  - "browse"

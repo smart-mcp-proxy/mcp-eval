@@ -1,0 +1,34 @@
+enabled: true
+name: "Update GitHub Server Environment"
+description: "User wants to update the GitHub server environment configuration"
+config_file: "configs/github_scenario_docker_config.json"
+user_intent: "Update my github-official-work server to set GITHUB_TOOLSETS environment variable to 'all' so I can use all available GitHub tools"
+
+expected_trajectory:
+  - action: "list_servers"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "list"
+  - action: "update_server_config"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "patch"
+      name: "github-official-work"
+      patch_json: "{\"env_json\": \"{\\\"GITHUB_TOOLSETS\\\": \\\"all\\\"}\"}"
+  - action: "verify_update"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "list"
+
+success_criteria:
+  - "Server configuration updated"
+  - "github-official-work" 
+  - "GITHUB_PERSONAL_ACCESS_TOKEN"
+  - "patch"
+  - "updated"
+
+tags:
+  - "server_management"
+  - "configuration"
+  - "update_operation"
+  - "github"

@@ -1,0 +1,82 @@
+{
+  "listen": ":8081",
+  "data_dir": "/tmp/mcpproxy_test",
+  "enable_tray": false,
+  "debug_search": false,
+  "mcpServers": [
+    {
+      "name": "github-official-work",
+      "protocol": "stdio",
+      "command": "/usr/local/bin/docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "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"
+      },
+      "enabled": true,
+      "quarantined": false,
+      "created": "2025-08-26T20:00:00.000000Z",
+      "updated": "2025-08-26T20:00:00.000000Z"
+    },
+    {
+      "name": "everything-2",
+      "protocol": "stdio",
+      "command": "/usr/local/bin/docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "mcp/everything"
+      ],
+      "enabled": true,
+      "quarantined": false,
+      "created": "2025-08-26T20:00:00.000000Z",
+      "updated": "2025-08-26T20:00:00.000000Z"
+    }
+  ],
+  "top_k": 5,
+  "tools_limit": 15,
+  "tool_response_limit": 20000,
+  "call_tool_timeout": "2m0s",
+  "environment": {
+    "inherit_system_safe": true,
+    "allowed_system_vars": [
+      "PATH",
+      "HOME",
+      "TMPDIR",
+      "TEMP",
+      "TMP",
+      "SHELL",
+      "TERM",
+      "LANG",
+      "USER",
+      "USERNAME"
+    ],
+    "custom_vars": {},
+    "enhance_path": false
+  },
+  "logging": {
+    "level": "info",
+    "enable_file": true,
+    "enable_console": true,
+    "filename": "main.log",
+    "max_size": 10,
+    "max_backups": 5,
+    "max_age": 30,
+    "compress": true,
+    "json_format": false
+  },
+  "read_only_mode": false,
+  "disable_management": false,
+  "allow_server_add": true,
+  "allow_server_remove": true,
+  "enable_prompts": true,
+  "check_server_repo": true,
+  "registries": []
+}

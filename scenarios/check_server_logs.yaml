@@ -1,0 +1,23 @@
+enabled: true
+name: "Check Server Logs"
+description: "User checks server logs for troubleshooting"
+config_file: "configs/minimal_config.json"
+user_intent: "Show me the last 10 log lines from everything-2 server"
+
+expected_trajectory:
+  - action: "tail_log"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "tail_log"
+      name: "everything-2"
+      lines: 10
+
+success_criteria:
+  - "mcp__mcpproxy__upstream_servers"
+  - "everything-2"
+  - "tail_log"
+  - "10"
+
+tags:
+  - "server_management"
+  - "logs"

@@ -1,0 +1,21 @@
+enabled: true
+name: "Remove Server"
+description: "User removes an existing MCP server"
+config_file: "configs/minimal_config.json"
+user_intent: "Remove the server named 'test-server'"
+
+expected_trajectory:
+  - action: "remove_server"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "remove"
+      name: "test-server"
+
+success_criteria:
+  - "mcp__mcpproxy__upstream_servers"
+  - "test-server"
+  - "remove"
+
+tags:
+  - "server_management"
+  - "remove_server"

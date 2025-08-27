@@ -1,0 +1,13 @@
+{
+  "mcpproxy": {
+    "command": "npx",
+    "args": [
+      "-y",
+      "@modelcontextprotocol/server-fetch"
+    ],
+    "env": {
+      "PROXY_URL": "http://localhost:8081",
+      "PROXY_SESSION": "test777-dind"
+    }
+  }
+}

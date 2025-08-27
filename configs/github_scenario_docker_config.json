@@ -1,0 +1,81 @@
+{
+  "version": "1.0",
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8080,
+    "cors": {
+      "enabled": true,
+      "allowedOrigins": ["*"],
+      "allowedMethods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      "allowedHeaders": ["*"],
+      "allowCredentials": true
+    },
+    "logging": {
+      "level": "info",
+      "format": "json",
+      "output": "stdout"
+    }
+  },
+  "mcp": {
+    "timeout": "30s",
+    "maxConnections": 100,
+    "retryAttempts": 3,
+    "retryDelay": "5s"
+  },
+  "security": {
+    "quarantine": {
+      "enabled": true,
+      "autoQuarantineNew": true,
+      "blockQuarantinedCalls": true
+    },
+    "rateLimit": {
+      "enabled": false,
+      "requestsPerMinute": 60
+    }
+  },
+  "storage": {
+    "type": "file",
+    "path": "/app/data/mcpproxy.db"
+  },
+  "mcpServers": [
+    {
+      "name": "github-official-work",
+      "protocol": "stdio",
+      "command": "/usr/bin/docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "GITHUB_PERSONAL_ACCESS_TOKEN",
+        "ghcr.io/github/github-mcp-server"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "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"
+      },
+      "enabled": true,
+      "quarantined": false,
+      "created": "2025-08-26T20:00:00.000000Z",
+      "updated": "2025-08-26T20:00:00.000000Z"
+    },
+    {
+      "name": "everything-2",
+      "protocol": "stdio",
+      "command": "/usr/bin/docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "mcp/everything"
+      ],
+      "enabled": true,
+      "quarantined": false,
+      "created": "2025-08-26T20:00:00.000000Z",
+      "updated": "2025-08-26T20:00:00.000000Z"
+    }
+  ],
+  "monitoring": {
+    "enabled": true,
+    "metricsPort": 9090
+  }
+}

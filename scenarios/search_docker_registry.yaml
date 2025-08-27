@@ -1,0 +1,21 @@
+enabled: true
+name: "Search Docker Registry"
+description: "User searches for MCP servers in Docker registry"
+config_file: "configs/minimal_config.json"
+user_intent: "Search for MCP servers in the Docker registry"
+
+expected_trajectory:
+  - action: "search_servers"
+    tool: "mcp__mcpproxy__search_servers"
+    args:
+      registry: "docker-mcp-catalog"
+
+success_criteria:
+  - "mcp__mcpproxy__search_servers"
+  - "docker"
+  - "registry"
+
+tags:
+  - "registry"
+  - "docker"
+  - "search"

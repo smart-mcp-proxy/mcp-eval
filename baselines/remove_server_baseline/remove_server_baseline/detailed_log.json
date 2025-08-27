@@ -1,0 +1,323 @@
+{
+  "scenario": "Remove Server",
+  "execution_time": "2025-08-27T12:44:30.012679",
+  "user_intent": "Remove the server named 'test-server'",
+  "expected_trajectory": [
+    {
+      "action": "remove_server",
+      "tool": "mcp__mcpproxy__upstream_servers",
+      "args": {
+        "operation": "remove",
+        "name": "test-server"
+      }
+    }
+  ],
+  "success_criteria": [
+    "mcp__mcpproxy__upstream_servers",
+    "test-server",
+    "remove"
+  ],
+  "mode": "baseline",
+  "available_tools": {
+    "discovery_method": "failed",
+    "error": "Not connected. Call connect() first.",
+    "discovered_at": "2025-08-27T12:44:30.012377",
+    "tools": []
+  },
+  "messages": [
+    {
+      "timestamp": "2025-08-27T12:44:31.150882",
+      "message_number": 1,
+      "type": "SystemMessage",
+      "content": {
+        "_type": "SystemMessage",
+        "subtype": "init",
+        "data": {
+          "type": "system",
+          "subtype": "init",
+          "cwd": "/Users/user/repos/claude-eval-agents/claude-agent-project",
+          "session_id": "d6b51603-4a5d-48c5-8448-0c822ebb0e98",
+          "tools": [
+            "Task",
+            "Bash",
+            "Glob",
+            "Grep",
+            "LS",
+            "ExitPlanMode",
+            "Read",
+            "Edit",
+            "MultiEdit",
+            "Write",
+            "NotebookEdit",
+            "WebFetch",
+            "TodoWrite",
+            "WebSearch",
+            "BashOutput",
+            "KillBash",
+            "mcp__mcpproxy__call_tool",
+            "mcp__mcpproxy__list_registries",
+            "mcp__mcpproxy__quarantine_security",
+            "mcp__mcpproxy__read_cache",
+            "mcp__mcpproxy__retrieve_tools",
+            "mcp__mcpproxy__search_servers",
+            "mcp__mcpproxy__upstream_servers"
+          ],
+          "mcp_servers": [
+            {
+              "name": "mcpproxy",
+              "status": "connected"
+            }
+          ],
+          "model": "claude-3-5-sonnet-20241022",
+          "permissionMode": "bypassPermissions",
+          "slash_commands": [
+            "add-dir",
+            "agents",
+            "clear",
+            "compact",
+            "config",
+            "context",
+            "cost",
+            "doctor",
+            "exit",
+            "help",
+            "ide",
+            "init",
+            "install-github-app",
+            "mcp",
+            "memory",
+            "migrate-installer",
+            "model",
+            "output-style",
+            "output-style:new",
+            "pr-comments",
+            "release-notes",
+            "resume",
+            "status",
+            "statusline",
+            "bug",
+            "review",
+            "security-review",
+            "terminal-setup",
+            "upgrade",
+            "vim",
+            "permissions",
+            "hooks",
+            "export",
+            "logout",
+            "login",
+            "bashes"
+          ],
+          "apiKeySource": "none",
+          "output_style": "default",
+          "uuid": "2e65814b-cb55-4f8c-9da3-e4c19d6f3e17"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:44:35.593043",
+      "message_number": 2,
+      "type": "AssistantMessage",
+      "content": {
+        "_type": "AssistantMessage",
+        "content": [
+          {
+            "text": "I'll help you remove the server named 'test-server' using the `mcp__mcpproxy__upstream_servers` tool. Since this is a server management operation, I'll first check the server list and then remove the specified server."
+          }
+        ],
+        "model": "claude-3-5-sonnet-20241022"
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:44:36.134718",
+      "message_number": 3,
+      "type": "AssistantMessage",
+      "content": {
+        "_type": "AssistantMessage",
+        "content": [
+          {
+            "id": "toolu_01HnE7GLSM2BMqaxonY858rY",
+            "name": "mcp__mcpproxy__upstream_servers",
+            "input": {
+              "operation": "remove",
+              "name": "test-server"
+            }
+          }
+        ],
+        "model": "claude-3-5-sonnet-20241022"
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:44:36.271688",
+      "message_number": 4,
+      "type": "UserMessage",
+      "content": {
+        "_type": "UserMessage",
+        "content": [
+          {
+            "tool_use_id": "toolu_01HnE7GLSM2BMqaxonY858rY",
+            "content": "Server 'test-server' not found",
+            "is_error": true
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:44:39.384450",
+      "message_number": 5,
+      "type": "AssistantMessage",
+      "content": {
+        "_type": "AssistantMessage",
+        "content": [
+          {
+            "text": "It appears that there is no server named 'test-server' currently configured in the MCP proxy. Let me list the current servers so you can verify the server name:"
+          }
+        ],
+        "model": "claude-3-5-sonnet-20241022"
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:44:39.834088",
+      "message_number": 6,
+      "type": "AssistantMessage",
+      "content": {
+        "_type": "AssistantMessage",
+        "content": [
+          {
+            "id": "toolu_014FXLMz1pysM7wiTQi2CEzH",
+            "name": "mcp__mcpproxy__upstream_servers",
+            "input": {
+              "operation": "list"
+            }
+          }
+        ],
+        "model": "claude-3-5-sonnet-20241022"
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:44:39.884921",
+      "message_number": 7,
+      "type": "UserMessage",
+      "content": {
+        "_type": "UserMessage",
+        "content": [
+          {
+            "tool_use_id": "toolu_014FXLMz1pysM7wiTQi2CEzH",
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"servers\":[{\"name\":\"everything-2\",\"protocol\":\"stdio\",\"command\":\"/usr/bin/docker\",\"args\":[\"run\",\"-i\",\"--rm\",\"mcp/everything\"],\"enabled\":true,\"quarantined\":false,\"created\":\"2025-08-26T20:00:00Z\",\"updated\":\"2025-08-27T09:44:25.072578419Z\"}],\"total\":1}"
+              }
+            ],
+            "is_error": null
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:44:43.207565",
+      "message_number": 8,
+      "type": "AssistantMessage",
+      "content": {
+        "_type": "AssistantMessage",
+        "content": [
+          {
+            "text": "I can see that there's currently only one server configured named \"everything-2\". The server \"test-server\" that you wanted to remove does not exist. Would you like to:\n\n1. Remove a different server (please provide the correct server name), or\n2. Perform a different operation with the existing server \"everything-2\"?\n\nPlease let me know how you'd like to proceed."
+          }
+        ],
+        "model": "claude-3-5-sonnet-20241022"
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:44:43.235331",
+      "message_number": 9,
+      "type": "ResultMessage",
+      "content": {
+        "_type": "ResultMessage",
+        "subtype": "success",
+        "duration_ms": 12092,
+        "duration_api_ms": 11904,
+        "is_error": false,
+        "num_turns": 7,
+        "session_id": "d6b51603-4a5d-48c5-8448-0c822ebb0e98",
+        "total_cost_usd": 0.08675565,
+        "usage": {
+          "input_tokens": 5,
+          "cache_creation_input_tokens": 204,
+          "cache_read_input_tokens": 18661,
+          "output_tokens": 88,
+          "server_tool_use": {
+            "web_search_requests": 0
+          },
+          "service_tier": "standard"
+        },
+        "result": "I can see that there's currently only one server configured named \"everything-2\". The server \"test-server\" that you wanted to remove does not exist. Would you like to:\n\n1. Remove a different server (please provide the correct server name), or\n2. Perform a different operation with the existing server \"everything-2\"?\n\nPlease let me know how you'd like to proceed."
+      }
+    }
+  ],
+  "tool_calls_summary": [
+    {
+      "tool_name": "mcp__mcpproxy__upstream_servers",
+      "tool_id": "toolu_01HnE7GLSM2BMqaxonY858rY",
+      "tool_input": {
+        "operation": "remove",
+        "name": "test-server"
+      },
+      "timestamp": "2025-08-27T12:44:36.134752",
+      "response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "Server 'test-server' not found"
+          }
+        ],
+        "is_error": true
+      },
+      "error": "Tool returned error response"
+    },
+    {
+      "tool_name": "mcp__mcpproxy__upstream_servers",
+      "tool_id": "toolu_014FXLMz1pysM7wiTQi2CEzH",
+      "tool_input": {
+        "operation": "list"
+      },
+      "timestamp": "2025-08-27T12:44:39.834136",
+      "response": {
+        "content": [
+          {
+            "type": "text",
+            "text": [
+              {
+                "type": "text",
+                "text": "{\"servers\":[{\"name\":\"everything-2\",\"protocol\":\"stdio\",\"command\":\"/usr/bin/docker\",\"args\":[\"run\",\"-i\",\"--rm\",\"mcp/everything\"],\"enabled\":true,\"quarantined\":false,\"created\":\"2025-08-26T20:00:00Z\",\"updated\":\"2025-08-27T09:44:25.072578419Z\"}],\"total\":1}"
+              }
+            ]
+          }
+        ],
+        "is_error": null
+      },
+      "error": null
+    }
+  ],
+  "execution_status": "PARTIAL",
+  "failure_analysis": {
+    "total_tools": 2,
+    "failed_tools": 1,
+    "failures": [
+      {
+        "tool": "mcp__mcpproxy__upstream_servers",
+        "operation": "remove",
+        "error": "Tool returned error response"
+      }
+    ],
+    "success_rate": 0.5
+  },
+  "early_stopped": false,
+  "mcpproxy_git_info": {
+    "git_hash": "5d0898172e503cbd79fbfd0b355bc7aa21c93f55",
+    "git_hash_short": "5d089817",
+    "commit_message": "Update mcp-go dependency to v0.38.0 in go.mod and go.sum (#42)",
+    "commit_date": "2025-08-21 09:31:55 +0300",
+    "branch": "main"
+  }
+}

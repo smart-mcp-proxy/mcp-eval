@@ -1,0 +1,19 @@
+enabled: true
+name: "Search Environment Tools (Simple)"
+description: "Simple test to find environment-related tools"
+user_intent: "Find me tools that work with environment variables"
+
+expected_trajectory:
+  - action: "search_tools"
+    tool: "mcp__mcpproxy__retrieve_tools"
+    args:
+      query: "environment"
+
+success_criteria:
+  - "Found environment-related tools"
+  - "Retrieved tool descriptions"
+  - "mcp__mcpproxy__retrieve_tools"
+
+tags:
+  - "tool_discovery"
+  - "simple_test"

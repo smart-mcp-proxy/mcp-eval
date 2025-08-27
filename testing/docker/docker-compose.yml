@@ -1,0 +1,48 @@
+services:
+  mcpproxy-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcpproxy-test-${TEST_SESSION:-default}
+    ports:
+      - "${TEST_PORT:-8081}:8080"
+      - "${METRICS_PORT:-9091}:9090"
+    volumes:
+      # Configuration
+      - "./config-template.json:/app/config/config.json:ro"
+      # Data persistence for test session  
+      - "mcpproxy-data-default:/app/data"
+      # Logs collection
+      - "./logs:/app/logs"
+      # Claude Code authentication (read-only)
+      - "${HOME}/.claude:/app/.claude:ro"
+      - "${HOME}/.anthropic:/app/.anthropic:ro"
+      # Docker socket for Docker-in-Docker (Docker Desktop on macOS)
+      - "${HOME}/.docker/run/docker.sock:/var/run/docker.sock"
+    environment:
+      # Claude Code authentication
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - CLAUDE_CONFIG_DIR=/app/.claude
+      # MCP Proxy settings
+      - MCPPROXY_LOG_LEVEL=${LOG_LEVEL:-info}
+      - TEST_SESSION=${TEST_SESSION:-default}
+      - TEST_PORT=${TEST_PORT:-8081}
+    networks:
+      - mcpproxy-test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+networks:
+  mcpproxy-test-network:
+    driver: bridge
+    name: mcpproxy-test-${TEST_SESSION:-default}
+
+volumes:
+  mcpproxy-data-default:
+    name: mcpproxy-data-${TEST_SESSION:-default}
+    external: false

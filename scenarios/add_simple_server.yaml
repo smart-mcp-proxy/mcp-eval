@@ -1,0 +1,25 @@
+enabled: true
+name: "Add Simple Server"
+description: "User adds a new MCP server with Docker"
+config_file: "configs/minimal_config.json"
+user_intent: "Add a new MCP server called 'test-server' using Docker image 'mcp/fetch'"
+
+expected_trajectory:
+  - action: "add_server"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "add"
+      name: "test-server"
+      protocol: "stdio"
+      command: "/usr/bin/docker"
+      args_json: "[\"run\", \"-i\", \"--rm\", \"mcp/fetch\"]"
+
+success_criteria:
+  - "mcp__mcpproxy__upstream_servers"
+  - "test-server"
+  - "mcp/fetch"
+  - "add"
+
+tags:
+  - "server_management"
+  - "add_server"

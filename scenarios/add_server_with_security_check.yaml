@@ -1,0 +1,35 @@
+enabled: true
+name: "Add MCP Server with Security Check"
+description: "User wants to add 'everything' server and verify its security status"
+user_intent: "Add a new MCP server called 'everything-security-test' using the Docker image 'mcp/everything'. After adding it, I need to check if it's been quarantined for security and inspect what tools it provides."
+
+expected_trajectory:
+  - action: "add_server"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "add"
+      name: "everything-security-test"
+      command: "/usr/local/bin/docker"
+      args_json: "[\"run\", \"-i\", \"--rm\", \"mcp/everything\"]"
+      protocol: "stdio"
+  - action: "check_connection"
+    tool: "mcp__mcpproxy__upstream_servers" 
+    args:
+      operation: "list"
+  - action: "inspect_quarantined"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "list_quarantined"
+
+success_criteria:
+  - "everything-security-test"
+  - "added successfully"
+  - "Docker"
+  - "quarantined"
+  - "mcp/everything"
+
+tags:
+  - "server_management"
+  - "security_check"
+  - "add_operation"
+  - "docker"

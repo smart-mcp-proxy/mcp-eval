@@ -1,0 +1,324 @@
+{
+  "scenario": "Basic Tool Search",
+  "execution_time": "2025-08-27T12:26:05.535852",
+  "user_intent": "Find tools for file operations",
+  "expected_trajectory": [
+    {
+      "action": "search_tools",
+      "tool": "mcp__mcpproxy__retrieve_tools",
+      "args": {
+        "query": "file operations"
+      }
+    }
+  ],
+  "success_criteria": [
+    "mcp__mcpproxy__retrieve_tools",
+    "file",
+    "tools"
+  ],
+  "mode": "baseline",
+  "available_tools": {
+    "discovery_method": "failed",
+    "error": "Not connected. Call connect() first.",
+    "discovered_at": "2025-08-27T12:26:05.535820",
+    "tools": []
+  },
+  "messages": [
+    {
+      "timestamp": "2025-08-27T12:26:06.520467",
+      "message_number": 1,
+      "type": "SystemMessage",
+      "content": {
+        "_type": "SystemMessage",
+        "subtype": "init",
+        "data": {
+          "type": "system",
+          "subtype": "init",
+          "cwd": "/Users/user/repos/claude-eval-agents/claude-agent-project",
+          "session_id": "18c8a585-bf0f-46d2-982c-4af9dd25e201",
+          "tools": [
+            "Task",
+            "Bash",
+            "Glob",
+            "Grep",
+            "LS",
+            "ExitPlanMode",
+            "Read",
+            "Edit",
+            "MultiEdit",
+            "Write",
+            "NotebookEdit",
+            "WebFetch",
+            "TodoWrite",
+            "WebSearch",
+            "BashOutput",
+            "KillBash",
+            "mcp__mcpproxy__call_tool",
+            "mcp__mcpproxy__list_registries",
+            "mcp__mcpproxy__quarantine_security",
+            "mcp__mcpproxy__read_cache",
+            "mcp__mcpproxy__retrieve_tools",
+            "mcp__mcpproxy__search_servers",
+            "mcp__mcpproxy__upstream_servers"
+          ],
+          "mcp_servers": [
+            {
+              "name": "mcpproxy",
+              "status": "connected"
+            }
+          ],
+          "model": "claude-3-5-sonnet-20241022",
+          "permissionMode": "bypassPermissions",
+          "slash_commands": [
+            "add-dir",
+            "agents",
+            "clear",
+            "compact",
+            "config",
+            "context",
+            "cost",
+            "doctor",
+            "exit",
+            "help",
+            "ide",
+            "init",
+            "install-github-app",
+            "mcp",
+            "memory",
+            "migrate-installer",
+            "model",
+            "output-style",
+            "output-style:new",
+            "pr-comments",
+            "release-notes",
+            "resume",
+            "status",
+            "statusline",
+            "bug",
+            "review",
+            "security-review",
+            "terminal-setup",
+            "upgrade",
+            "vim",
+            "permissions",
+            "hooks",
+            "export",
+            "logout",
+            "login",
+            "bashes"
+          ],
+          "apiKeySource": "none",
+          "output_style": "default",
+          "uuid": "14554bd7-8d26-414c-bc02-2754145da6c6"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:26:10.022362",
+      "message_number": 2,
+      "type": "AssistantMessage",
+      "content": {
+        "_type": "AssistantMessage",
+        "content": [
+          {
+            "text": "I'll search for tools related to file operations using the `retrieve_tools` tool."
+          }
+        ],
+        "model": "claude-3-5-sonnet-20241022"
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:26:10.530637",
+      "message_number": 3,
+      "type": "AssistantMessage",
+      "content": {
+        "_type": "AssistantMessage",
+        "content": [
+          {
+            "id": "toolu_01G5MLcSecttGNKyTZSdKLfM",
+            "name": "mcp__mcpproxy__retrieve_tools",
+            "input": {
+              "query": "file operations read write edit files"
+            }
+          }
+        ],
+        "model": "claude-3-5-sonnet-20241022"
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:26:10.683782",
+      "message_number": 4,
+      "type": "UserMessage",
+      "content": {
+        "_type": "UserMessage",
+        "content": [
+          {
+            "tool_use_id": "toolu_01G5MLcSecttGNKyTZSdKLfM",
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"query\":\"file operations read write edit files\",\"tools\":null,\"total\":0}"
+              }
+            ],
+            "is_error": null
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:26:13.878456",
+      "message_number": 5,
+      "type": "AssistantMessage",
+      "content": {
+        "_type": "AssistantMessage",
+        "content": [
+          {
+            "text": "Let me try another search to find tools related to file management."
+          }
+        ],
+        "model": "claude-3-5-sonnet-20241022"
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:26:14.381877",
+      "message_number": 6,
+      "type": "AssistantMessage",
+      "content": {
+        "_type": "AssistantMessage",
+        "content": [
+          {
+            "id": "toolu_013DtkRpnnhjBMpPZo4dNzHu",
+            "name": "mcp__mcpproxy__retrieve_tools",
+            "input": {
+              "query": "file management filesystem operations"
+            }
+          }
+        ],
+        "model": "claude-3-5-sonnet-20241022"
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:26:14.429752",
+      "message_number": 7,
+      "type": "UserMessage",
+      "content": {
+        "_type": "UserMessage",
+        "content": [
+          {
+            "tool_use_id": "toolu_013DtkRpnnhjBMpPZo4dNzHu",
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"query\":\"file management filesystem operations\",\"tools\":null,\"total\":0}"
+              }
+            ],
+            "is_error": null
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:26:23.161189",
+      "message_number": 8,
+      "type": "AssistantMessage",
+      "content": {
+        "_type": "AssistantMessage",
+        "content": [
+          {
+            "text": "I see that there are no specific MCP tools available for file operations. However, I can tell you about the built-in Claude Code tools that are available for file operations:\n\n1. `Read` - Reads files from the filesystem\n   - Can read text files, images, PDFs, and Jupyter notebooks\n   - Takes an absolute file path as input\n   - Optional parameters for line offset and limit\n\n2. `Write` - Writes content to files\n   - Creates or overwrites files\n   - Requires absolute file path and content\n\n3. `Edit` - Makes string replacements in files\n   - Performs exact string replacements\n   - Requires file path, old string, and new string\n   - Optional replace_all parameter\n\n4. `MultiEdit` - Makes multiple edits to a file in one operation\n   - More efficient than multiple Edit operations\n   - Takes file path and array of edit operations\n\n5. `Glob` - Finds files matching patterns\n   - Uses glob patterns like \"**/*.js\"\n   - Returns matching file paths\n   - Optional path parameter to specify search directory\n\nThese tools provide core functionality for reading, writing, editing, and finding files. Would you like me to demonstrate how to use any of these specific tools?"
+          }
+        ],
+        "model": "claude-3-5-sonnet-20241022"
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:26:23.168340",
+      "message_number": 9,
+      "type": "ResultMessage",
+      "content": {
+        "_type": "ResultMessage",
+        "subtype": "success",
+        "duration_ms": 16658,
+        "duration_api_ms": 17525,
+        "is_error": false,
+        "num_turns": 7,
+        "session_id": "18c8a585-bf0f-46d2-982c-4af9dd25e201",
+        "total_cost_usd": 0.04135435,
+        "usage": {
+          "input_tokens": 4,
+          "cache_creation_input_tokens": 106,
+          "cache_read_input_tokens": 18500,
+          "output_tokens": 276,
+          "server_tool_use": {
+            "web_search_requests": 0
+          },
+          "service_tier": "standard"
+        },
+        "result": "I see that there are no specific MCP tools available for file operations. However, I can tell you about the built-in Claude Code tools that are available for file operations:\n\n1. `Read` - Reads files from the filesystem\n   - Can read text files, images, PDFs, and Jupyter notebooks\n   - Takes an absolute file path as input\n   - Optional parameters for line offset and limit\n\n2. `Write` - Writes content to files\n   - Creates or overwrites files\n   - Requires absolute file path and content\n\n3. `Edit` - Makes string replacements in files\n   - Performs exact string replacements\n   - Requires file path, old string, and new string\n   - Optional replace_all parameter\n\n4. `MultiEdit` - Makes multiple edits to a file in one operation\n   - More efficient than multiple Edit operations\n   - Takes file path and array of edit operations\n\n5. `Glob` - Finds files matching patterns\n   - Uses glob patterns like \"**/*.js\"\n   - Returns matching file paths\n   - Optional path parameter to specify search directory\n\nThese tools provide core functionality for reading, writing, editing, and finding files. Would you like me to demonstrate how to use any of these specific tools?"
+      }
+    }
+  ],
+  "tool_calls_summary": [
+    {
+      "tool_name": "mcp__mcpproxy__retrieve_tools",
+      "tool_id": "toolu_01G5MLcSecttGNKyTZSdKLfM",
+      "tool_input": {
+        "query": "file operations read write edit files"
+      },
+      "timestamp": "2025-08-27T12:26:10.530696",
+      "response": {
+        "content": [
+          {
+            "type": "text",
+            "text": [
+              {
+                "type": "text",
+                "text": "{\"query\":\"file operations read write edit files\",\"tools\":null,\"total\":0}"
+              }
+            ]
+          }
+        ],
+        "is_error": null
+      },
+      "error": null
+    },
+    {
+      "tool_name": "mcp__mcpproxy__retrieve_tools",
+      "tool_id": "toolu_013DtkRpnnhjBMpPZo4dNzHu",
+      "tool_input": {
+        "query": "file management filesystem operations"
+      },
+      "timestamp": "2025-08-27T12:26:14.381925",
+      "response": {
+        "content": [
+          {
+            "type": "text",
+            "text": [
+              {
+                "type": "text",
+                "text": "{\"query\":\"file management filesystem operations\",\"tools\":null,\"total\":0}"
+              }
+            ]
+          }
+        ],
+        "is_error": null
+      },
+      "error": null
+    }
+  ],
+  "execution_status": "SUCCESS",
+  "failure_analysis": {
+    "total_tools": 2,
+    "failed_tools": 0,
+    "failures": [],
+    "success_rate": 1.0
+  },
+  "early_stopped": false,
+  "mcpproxy_git_info": {
+    "git_hash": "5d0898172e503cbd79fbfd0b355bc7aa21c93f55",
+    "git_hash_short": "5d089817",
+    "commit_message": "Update mcp-go dependency to v0.38.0 in go.mod and go.sum (#42)",
+    "commit_date": "2025-08-21 09:31:55 +0300",
+    "branch": "main"
+  }
+}

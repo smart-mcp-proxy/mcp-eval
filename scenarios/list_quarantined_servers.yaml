@@ -1,0 +1,20 @@
+enabled: true
+name: "List Quarantined Servers"
+description: "User wants to see quarantined servers"
+config_file: "configs/quarantine_config.json"
+user_intent: "Show me which servers are quarantined"
+
+expected_trajectory:
+  - action: "list_quarantined"
+    tool: "mcp__mcpproxy__quarantine_security"
+    args:
+      operation: "list_quarantined"
+
+success_criteria:
+  - "mcp__mcpproxy__quarantine_security"
+  - "quarantined"
+  - "list"
+
+tags:
+  - "security"
+  - "quarantine"

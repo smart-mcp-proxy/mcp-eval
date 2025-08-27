@@ -1,0 +1,21 @@
+enabled: true
+name: "Debug Tool Search"
+description: "User searches for email tools with debug explanations"
+config_file: "configs/minimal_config.json"
+user_intent: "Search for email tools and explain the scoring"
+
+expected_trajectory:
+  - action: "search_tools"
+    tool: "mcp__mcpproxy__retrieve_tools"
+    args:
+      query: "email"
+      debug: true
+
+success_criteria:
+  - "mcp__mcpproxy__retrieve_tools"
+  - "email"
+  - "debug"
+
+tags:
+  - "tool_discovery"
+  - "debug"

@@ -1,0 +1,18 @@
+enabled: true
+name: "List Available Registries"
+description: "User wants to see available MCP registries"
+config_file: "configs/minimal_config.json"
+user_intent: "What MCP registries are available?"
+
+expected_trajectory:
+  - action: "list_registries"
+    tool: "mcp__mcpproxy__list_registries"
+    args: {}
+
+success_criteria:
+  - "mcp__mcpproxy__list_registries"
+  - "registries"
+
+tags:
+  - "registry"
+  - "discovery"

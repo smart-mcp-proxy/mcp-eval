@@ -1,0 +1,23 @@
+enabled: true
+name: "Search Environment Variable Tools"
+description: "User wants to find tools that can help with system environment variables"
+user_intent: "I need tools to check what environment variables are set on my system. Can you help me find and use tools that can print or show environment variables?"
+
+expected_trajectory:
+  - action: "retrieve_tools"
+    tool: "mcp__mcpproxy__retrieve_tools"
+    args:
+      query: "environment variables print"
+
+success_criteria:
+  - "Found environment-related tools"
+  - "Retrieved tool descriptions"
+  - "mcp__mcpproxy__retrieve_tools"
+  - "printEnv"
+  - "environment"
+
+tags:
+  - "tool_discovery"
+  - "environment"
+  - "search"
+  - "system"

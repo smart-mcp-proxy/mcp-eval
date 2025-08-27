@@ -1,0 +1,20 @@
+enabled: true
+name: "List All Servers"
+description: "User wants to see all MCP servers"
+config_file: "configs/minimal_config.json"
+user_intent: "Show me all MCP servers"
+
+expected_trajectory:
+  - action: "list_servers"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "list"
+
+success_criteria:
+  - "mcp__mcpproxy__upstream_servers"
+  - "list"
+  - "servers"
+
+tags:
+  - "server_management"
+  - "list"

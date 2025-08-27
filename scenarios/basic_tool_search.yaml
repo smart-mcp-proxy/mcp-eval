@@ -1,0 +1,20 @@
+enabled: true
+name: "Basic Tool Search"
+description: "User searches for file operation tools"
+config_file: "configs/minimal_config.json"
+user_intent: "Find tools for file operations"
+
+expected_trajectory:
+  - action: "search_tools"
+    tool: "mcp__mcpproxy__retrieve_tools"
+    args:
+      query: "file operations"
+
+success_criteria:
+  - "mcp__mcpproxy__retrieve_tools"
+  - "file"
+  - "tools"
+
+tags:
+  - "tool_discovery"
+  - "search"

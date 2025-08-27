@@ -1,0 +1,23 @@
+enabled: true
+name: "Inspect Quarantined Server"
+description: "User inspects security of quarantined server"
+config_file: "configs/quarantine_config.json"
+user_intent: "Inspect the security of quarantined server 'everything-comprehensive'"
+
+expected_trajectory:
+  - action: "inspect_quarantined"
+    tool: "mcp__mcpproxy__quarantine_security"
+    args:
+      operation: "inspect_quarantined"
+      name: "everything-comprehensive"
+
+success_criteria:
+  - "mcp__mcpproxy__quarantine_security"
+  - "everything-comprehensive"
+  - "inspect"
+  - "security"
+
+tags:
+  - "security"
+  - "quarantine"
+  - "inspect"

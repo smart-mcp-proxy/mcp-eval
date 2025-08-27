@@ -1,0 +1,20 @@
+enabled: true
+name: "GitHub Tool Discovery"
+description: "User searches for GitHub repository tools"
+config_file: "configs/github_scenario_docker_config.json"
+user_intent: "Show me GitHub repository tools"
+
+expected_trajectory:
+  - action: "search_tools"
+    tool: "mcp__mcpproxy__retrieve_tools"
+    args:
+      query: "GitHub repository"
+
+success_criteria:
+  - "mcp__mcpproxy__retrieve_tools"
+  - "GitHub"
+  - "repository"
+
+tags:
+  - "tool_discovery"
+  - "github"

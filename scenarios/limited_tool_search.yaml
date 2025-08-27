@@ -1,0 +1,21 @@
+enabled: true
+name: "Limited Tool Search"
+description: "User searches for database tools with limit"
+config_file: "configs/minimal_config.json"
+user_intent: "Find me 5 tools for database operations"
+
+expected_trajectory:
+  - action: "search_tools"
+    tool: "mcp__mcpproxy__retrieve_tools"
+    args:
+      query: "database operations"
+      limit: 5
+
+success_criteria:
+  - "mcp__mcpproxy__retrieve_tools"
+  - "database"
+  - "5"
+
+tags:
+  - "tool_discovery"
+  - "limit"

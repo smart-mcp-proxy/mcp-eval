@@ -1,0 +1,267 @@
+{
+  "report_type": "trajectory_comparison",
+  "generated_at": "2025-08-27T10:02:50.290561",
+  "scenario": {
+    "name": "Search Environment Tools (Simple)",
+    "description": "Simple test to find environment-related tools",
+    "user_intent": "Find me tools that work with environment variables",
+    "expected_trajectory": [
+      {
+        "action": "search_tools",
+        "tool": "mcp__mcpproxy__retrieve_tools",
+        "args": {
+          "query": "environment"
+        }
+      }
+    ]
+  },
+  "evaluation_metrics": {
+    "overall_score": 0.4688888888888889,
+    "tool_trajectory_score": 0.3361111111111111,
+    "success_status_match": true,
+    "execution_time_diff_seconds": 0.0,
+    "tool_count_difference": 1,
+    "pass_threshold": 0.8,
+    "result": "FAIL"
+  },
+  "current_execution": {
+    "success": true,
+    "execution_time": 0.0,
+    "tool_calls_count": 3,
+    "tool_calls": [
+      {
+        "tool_name": "mcp__mcpproxy__retrieve_tools",
+        "tool_id": "toolu_011T7qrfqENuLZC8M4BUrues",
+        "tool_input": {
+          "query": "environment variables env management configuration"
+        },
+        "timestamp": "2025-08-27T10:02:40.434023",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": [
+                {
+                  "type": "text",
+                  "text": "{\"query\":\"environment variables env management configuration\",\"tools\":[{\"description\":\"Prints all environment variables, helpful for debugging MCP server configuration\",\"inputSchema\":{\"properties\":{},\"type\":\"object\"},\"name\":\"printEnv\",\"score\":0.24932915912269876,\"server\":\"everything-2\"}],\"total\":1}"
+                }
+              ]
+            }
+          ],
+          "is_error": null
+        },
+        "error": null
+      },
+      {
+        "tool_name": "mcp__mcpproxy__retrieve_tools",
+        "tool_id": "toolu_013KP29yRE4kX9dji7NGwdUD",
+        "tool_input": {
+          "query": "set environment variables server configuration"
+        },
+        "timestamp": "2025-08-27T10:02:43.337878",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": [
+                {
+                  "type": "text",
+                  "text": "{\"query\":\"set environment variables server configuration\",\"tools\":[{\"description\":\"Prints all environment variables, helpful for debugging MCP server configuration\",\"inputSchema\":{\"properties\":{},\"type\":\"object\"},\"name\":\"printEnv\",\"score\":0.44602593840719007,\"server\":\"everything-2\"}],\"total\":1}"
+                }
+              ]
+            }
+          ],
+          "is_error": null
+        },
+        "error": null
+      },
+      {
+        "tool_name": "mcp__mcpproxy__retrieve_tools",
+        "tool_id": "toolu_01FSvQWY5Yezh9GDKCRWN4hF",
+        "tool_input": {
+          "query": "manage servers configure env_json environment settings"
+        },
+        "timestamp": "2025-08-27T10:02:46.160650",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": [
+                {
+                  "type": "text",
+                  "text": "{\"query\":\"manage servers configure env_json environment settings\",\"tools\":[{\"description\":\"Prints all environment variables, helpful for debugging MCP server configuration\",\"inputSchema\":{\"properties\":{},\"type\":\"object\"},\"name\":\"printEnv\",\"score\":0.018713953164647967,\"server\":\"everything-2\"},{\"description\":\"Manage a notification subscription: ignore, watch, or delete a notification thread subscription.\",\"inputSchema\":{\"properties\":{\"action\":{\"description\":\"Action to perform: ignore, watch, or delete the notification subscription.\",\"enum\":[\"ignore\",\"watch\",\"delete\"],\"type\":\"string\"},\"notificationID\":{\"description\":\"The ID of the notification thread.\",\"type\":\"string\"}},\"required\":[\"notificationID\",\"action\"],\"type\":\"object\"},\"name\":\"manage_notification_subscription\",\"score\":0.009037615402687542,\"server\":\"github-official-work\"},{\"description\":\"Manage a repository notification subscription: ignore, watch, or delete repository notifications subscription for the provided repository.\",\"inputSchema\":{\"properties\":{\"action\":{\"description\":\"Action to perform: ignore, watch, or delete the repository notification subscription.\",\"enum\":[\"ignore\",\"watch\",\"delete\"],\"type\":\"string\"},\"owner\":{\"description\":\"The account owner of the repository.\",\"type\":\"string\"},\"repo\":{\"description\":\"The name of the repository.\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"action\"],\"type\":\"object\"},\"name\":\"manage_repository_notification_subscription\",\"score\":0.007986244118815298,\"server\":\"github-official-work\"}],\"total\":3}"
+                }
+              ]
+            }
+          ],
+          "is_error": null
+        },
+        "error": null
+      }
+    ],
+    "error": null
+  },
+  "baseline_execution": {
+    "scenario": "Search MCP Tools (Simple)",
+    "execution_time": "2025-08-26T19:21:21.561572",
+    "tool_calls_count": 2,
+    "tool_calls": [
+      {
+        "tool_name": "mcp__mcpproxy__retrieve_tools",
+        "tool_id": "toolu_01WKhA5qY8HggKA7HFtnCoPE",
+        "tool_input": {
+          "query": "environment variables get set manage env vars"
+        },
+        "timestamp": "2025-08-26T19:21:27.846839",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": [
+                {
+                  "type": "text",
+                  "text": "{\"query\":\"environment variables get set manage env vars\",\"tools\":[{\"description\":\"Prints all environment variables, helpful for debugging MCP server configuration\",\"inputSchema\":{\"properties\":{},\"type\":\"object\"},\"name\":\"printEnv\",\"score\":0.03472826948488954,\"server\":\"everything-2\"}],\"total\":1}"
+                }
+              ]
+            }
+          ],
+          "is_error": null
+        },
+        "error": null
+      },
+      {
+        "tool_name": "mcp__mcpproxy__retrieve_tools",
+        "tool_id": "toolu_01WFAGNXwZuT2BBYCEaQHAGs",
+        "tool_input": {
+          "query": "get system environment configuration settings"
+        },
+        "timestamp": "2025-08-26T19:21:31.061205",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": [
+                {
+                  "type": "text",
+                  "text": "{\"query\":\"get system environment configuration settings\",\"tools\":[{\"description\":\"Prints all environment variables, helpful for debugging MCP server configuration\",\"inputSchema\":{\"properties\":{},\"type\":\"object\"},\"name\":\"printEnv\",\"score\":0.0510416623487363,\"server\":\"everything-2\"}],\"total\":1}"
+                }
+              ]
+            }
+          ],
+          "is_error": null
+        },
+        "error": null
+      }
+    ]
+  },
+  "detailed_comparison": {
+    "trajectory_matches": 0.3361111111111111,
+    "current_tool_count": 3,
+    "baseline_tool_count": 2,
+    "tool_differences": {
+      "tools_added": [],
+      "tools_removed": [],
+      "tools_common": [
+        "mcp__mcpproxy__retrieve_tools"
+      ],
+      "parameter_differences": [
+        {
+          "tool_name": "mcp__mcpproxy__retrieve_tools",
+          "current_params": {
+            "query": "environment variables env management configuration"
+          },
+          "baseline_params": {
+            "query": "get system environment configuration settings"
+          }
+        },
+        {
+          "tool_name": "mcp__mcpproxy__retrieve_tools",
+          "current_params": {
+            "query": "set environment variables server configuration"
+          },
+          "baseline_params": {
+            "query": "get system environment configuration settings"
+          }
+        },
+        {
+          "tool_name": "mcp__mcpproxy__retrieve_tools",
+          "current_params": {
+            "query": "manage servers configure env_json environment settings"
+          },
+          "baseline_params": {
+            "query": "get system environment configuration settings"
+          }
+        }
+      ]
+    },
+    "execution_status_comparison": {
+      "current": "SUCCESS",
+      "baseline": "SUCCESS"
+    },
+    "timestamp": "2025-08-27T10:02:50.289652"
+  },
+  "per_invocation_results": [
+    {
+      "invocation": 1,
+      "score": 0.5333333333333333,
+      "details": "Invocation 1: PARTIAL MATCH (similarity: 0.533)",
+      "actual_tools": [
+        {
+          "name": "mcp__mcpproxy__retrieve_tools",
+          "args": {
+            "query": "environment variables env management configuration"
+          },
+          "similarity": 0.5333333333333333
+        }
+      ],
+      "expected_tools": [
+        {
+          "name": "mcp__mcpproxy__retrieve_tools",
+          "args": {
+            "query": "environment variables get set manage env vars"
+          }
+        }
+      ]
+    },
+    {
+      "invocation": 2,
+      "score": 0.475,
+      "details": "Invocation 2: PARTIAL MATCH (similarity: 0.475)",
+      "actual_tools": [
+        {
+          "name": "mcp__mcpproxy__retrieve_tools",
+          "args": {
+            "query": "set environment variables server configuration"
+          },
+          "similarity": 0.475
+        }
+      ],
+      "expected_tools": [
+        {
+          "name": "mcp__mcpproxy__retrieve_tools",
+          "args": {
+            "query": "get system environment configuration settings"
+          }
+        }
+      ]
+    },
+    {
+      "invocation": 3,
+      "score": 0.0,
+      "details": "Invocation 3: EXTRA CALL",
+      "actual_tools": [
+        {
+          "name": "mcp__mcpproxy__retrieve_tools",
+          "args": {
+            "query": "manage servers configure env_json environment settings"
+          },
+          "similarity": 0.0
+        }
+      ],
+      "expected_tools": []
+    }
+  ],
+  "recommendations": [
+    "Tool trajectory mismatch detected. Review expected vs actual tool calls."
+  ]
+}

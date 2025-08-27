@@ -1,0 +1,36 @@
+[project]
+name = "mcp-eval"
+version = "0.1.0"
+description = "MCP (Model Context Protocol) evaluation system using dialog trajectory testing"
+readme = "README.md"
+authors = [
+    {name = "MCP Eval Contributors"}
+]
+license = {text = "MIT"}
+requires-python = ">=3.11.1"
+keywords = ["mcp", "evaluation", "testing", "ai", "agents", "dialog", "trajectory"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "claude-code-sdk>=0.0.20",
+    "click>=8.2.1",
+    "pydantic>=2.11.7",
+    "pyyaml>=6.0.2",
+    "rich>=14.1.0",
+]
+
+[project.scripts]
+mcp-eval = "mcp_eval.cli:cli"
+
+[project.urls]
+Homepage = "https://github.com/anthropics/mcp-eval"
+Repository = "https://github.com/anthropics/mcp-eval"
+Issues = "https://github.com/anthropics/mcp-eval/issues"

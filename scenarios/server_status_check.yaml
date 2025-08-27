@@ -1,0 +1,21 @@
+enabled: true
+name: "Server Status Check"
+description: "User checks if GitHub server is properly configured"
+config_file: "configs/github_scenario_docker_config.json"
+user_intent: "Check if my GitHub server is properly configured"
+
+expected_trajectory:
+  - action: "list_servers"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "list"
+
+success_criteria:
+  - "mcp__mcpproxy__upstream_servers"
+  - "github"
+  - "configured"
+
+tags:
+  - "server_management"
+  - "status"
+  - "github"

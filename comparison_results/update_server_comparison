@@ -1,0 +1,305 @@
+{
+  "report_type": "trajectory_comparison",
+  "generated_at": "2025-08-27T10:12:09.222924",
+  "scenario": {
+    "name": "Update GitHub Server Token",
+    "description": "User wants to update the GitHub server API token configuration",
+    "user_intent": "Update my github-official-work server to use the new token github_pat_11ABCDEFG0123456789_AbCdEf instead of the old one",
+    "expected_trajectory": [
+      {
+        "action": "list_servers",
+        "tool": "mcp__mcpproxy__upstream_servers",
+        "args": {
+          "operation": "list"
+        }
+      },
+      {
+        "action": "update_server_config",
+        "tool": "mcp__mcpproxy__upstream_servers",
+        "args": {
+          "operation": "patch",
+          "name": "github-official-work",
+          "patch_json": "{\"env_json\": \"{\\\"GITHUB_PERSONAL_ACCESS_TOKEN\\\": \\\"github_pat_11ABCDEFG0123456789_AbCdEf\\\"}\"}"
+        }
+      },
+      {
+        "action": "verify_update",
+        "tool": "mcp__mcpproxy__upstream_servers",
+        "args": {
+          "operation": "list"
+        }
+      }
+    ]
+  },
+  "evaluation_metrics": {
+    "overall_score": 1.0,
+    "tool_trajectory_score": 1.0,
+    "success_status_match": true,
+    "execution_time_diff_seconds": 0.0,
+    "tool_count_difference": 0,
+    "pass_threshold": 0.8,
+    "result": "PASS"
+  },
+  "current_execution": {
+    "success": true,
+    "execution_time": 0.0,
+    "tool_calls_count": 3,
+    "tool_calls": [
+      {
+        "tool_name": "mcp__mcpproxy__upstream_servers",
+        "tool_id": "toolu_014n7cpAsv25ehcfCGCMqibw",
+        "tool_input": {
+          "operation": "list"
+        },
+        "timestamp": "2025-08-27T10:11:55.976746",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": [
+                {
+                  "type": "text",
+                  "text": "{\"servers\":[{\"name\":\"everything-2\",\"protocol\":\"stdio\",\"command\":\"/usr/bin/docker\",\"args\":[\"run\",\"-i\",\"--rm\",\"mcp/everything\"],\"enabled\":true,\"quarantined\":false,\"created\":\"2025-08-26T20:00:00Z\",\"updated\":\"2025-08-27T07:11:45.42963993Z\"},{\"name\":\"github-official-work\",\"protocol\":\"stdio\",\"command\":\"/usr/bin/docker\",\"args\":[\"run\",\"-i\",\"--rm\",\"-e\",\"GITHUB_PERSONAL_ACCESS_TOKEN\",\"ghcr.io/github/github-mcp-server\"],\"env\":{\"GITHUB_PERSONAL_ACCESS_TOKEN\":\"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\"},\"enabled\":true,\"quarantined\":false,\"created\":\"2025-08-26T20:00:00Z\",\"updated\":\"2025-08-27T07:11:45.073427805Z\"}],\"total\":2}"
+                }
+              ]
+            }
+          ],
+          "is_error": null
+        },
+        "error": null
+      },
+      {
+        "tool_name": "mcp__mcpproxy__upstream_servers",
+        "tool_id": "toolu_013CZD7pCaWwnGXpBw1ZFpph",
+        "tool_input": {
+          "operation": "patch",
+          "name": "github-official-work",
+          "patch_json": "{\"env\": {\"GITHUB_PERSONAL_ACCESS_TOKEN\": \"github_pat_11ABCDEFG0123456789_AbCdEf\"}}"
+        },
+        "timestamp": "2025-08-27T10:12:00.283652",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": [
+                {
+                  "type": "text",
+                  "text": "{\"enabled\":true,\"id\":\"github-official-work\",\"name\":\"github-official-work\",\"updated\":true}"
+                }
+              ]
+            }
+          ],
+          "is_error": null
+        },
+        "error": null
+      },
+      {
+        "tool_name": "mcp__mcpproxy__upstream_servers",
+        "tool_id": "toolu_01Wmq8tgUVx4ioVoHCLx7tJm",
+        "tool_input": {
+          "operation": "list"
+        },
+        "timestamp": "2025-08-27T10:12:06.197491",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": [
+                {
+                  "type": "text",
+                  "text": "{\"servers\":[{\"name\":\"everything-2\",\"protocol\":\"stdio\",\"command\":\"/usr/bin/docker\",\"args\":[\"run\",\"-i\",\"--rm\",\"mcp/everything\"],\"enabled\":true,\"quarantined\":false,\"created\":\"2025-08-26T20:00:00Z\",\"updated\":\"2025-08-27T07:11:45.42963993Z\"},{\"name\":\"github-official-work\",\"protocol\":\"stdio\",\"command\":\"/usr/bin/docker\",\"args\":[\"run\",\"-i\",\"--rm\",\"-e\",\"GITHUB_PERSONAL_ACCESS_TOKEN\",\"ghcr.io/github/github-mcp-server\"],\"env\":{\"GITHUB_PERSONAL_ACCESS_TOKEN\":\"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\"},\"enabled\":true,\"quarantined\":false,\"created\":\"2025-08-26T20:00:00Z\",\"updated\":\"2025-08-27T07:12:00.351679756Z\"}],\"total\":2}"
+                }
+              ]
+            }
+          ],
+          "is_error": null
+        },
+        "error": null
+      }
+    ],
+    "error": null
+  },
+  "baseline_execution": {
+    "scenario": "Update GitHub Server Token",
+    "execution_time": "2025-08-27T09:56:57.874566",
+    "tool_calls_count": 3,
+    "tool_calls": [
+      {
+        "tool_name": "mcp__mcpproxy__upstream_servers",
+        "tool_id": "toolu_01CykoxsgAtJtBo91H3NvzwE",
+        "tool_input": {
+          "operation": "list"
+        },
+        "timestamp": "2025-08-27T09:57:03.908341",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": [
+                {
+                  "type": "text",
+                  "text": "{\"servers\":[{\"name\":\"everything-2\",\"protocol\":\"stdio\",\"command\":\"/usr/bin/docker\",\"args\":[\"run\",\"-i\",\"--rm\",\"mcp/everything\"],\"enabled\":true,\"quarantined\":false,\"created\":\"2025-08-26T20:00:00Z\",\"updated\":\"2025-08-27T06:56:53.184804919Z\"},{\"name\":\"github-official-work\",\"protocol\":\"stdio\",\"command\":\"/usr/bin/docker\",\"args\":[\"run\",\"-i\",\"--rm\",\"-e\",\"GITHUB_PERSONAL_ACCESS_TOKEN\",\"ghcr.io/github/github-mcp-server\"],\"env\":{\"GITHUB_PERSONAL_ACCESS_TOKEN\":\"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\"},\"enabled\":true,\"quarantined\":false,\"created\":\"2025-08-26T20:00:00Z\",\"updated\":\"2025-08-27T06:56:52.901268294Z\"}],\"total\":2}"
+                }
+              ]
+            }
+          ],
+          "is_error": null
+        },
+        "error": null
+      },
+      {
+        "tool_name": "mcp__mcpproxy__upstream_servers",
+        "tool_id": "toolu_01BskuZ347wJn1Rm948LLDhp",
+        "tool_input": {
+          "operation": "patch",
+          "name": "github-official-work",
+          "patch_json": "{\"env\": {\"GITHUB_PERSONAL_ACCESS_TOKEN\": \"github_pat_11ABCDEFG0123456789_AbCdEf\"}}"
+        },
+        "timestamp": "2025-08-27T09:57:08.674452",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": [
+                {
+                  "type": "text",
+                  "text": "{\"enabled\":true,\"id\":\"github-official-work\",\"name\":\"github-official-work\",\"updated\":true}"
+                }
+              ]
+            }
+          ],
+          "is_error": null
+        },
+        "error": null
+      },
+      {
+        "tool_name": "mcp__mcpproxy__upstream_servers",
+        "tool_id": "toolu_01FzsPrrG9zYPpAXFNT8PnuT",
+        "tool_input": {
+          "operation": "list"
+        },
+        "timestamp": "2025-08-27T09:57:14.639378",
+        "response": {
+          "content": [
+            {
+              "type": "text",
+              "text": [
+                {
+                  "type": "text",
+                  "text": "{\"servers\":[{\"name\":\"everything-2\",\"protocol\":\"stdio\",\"command\":\"/usr/bin/docker\",\"args\":[\"run\",\"-i\",\"--rm\",\"mcp/everything\"],\"enabled\":true,\"quarantined\":false,\"created\":\"2025-08-26T20:00:00Z\",\"updated\":\"2025-08-27T06:56:53.184804919Z\"},{\"name\":\"github-official-work\",\"protocol\":\"stdio\",\"command\":\"/usr/bin/docker\",\"args\":[\"run\",\"-i\",\"--rm\",\"-e\",\"GITHUB_PERSONAL_ACCESS_TOKEN\",\"ghcr.io/github/github-mcp-server\"],\"env\":{\"GITHUB_PERSONAL_ACCESS_TOKEN\":\"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\"},\"enabled\":true,\"quarantined\":false,\"created\":\"2025-08-26T20:00:00Z\",\"updated\":\"2025-08-27T06:57:08.733408427Z\"}],\"total\":2}"
+                }
+              ]
+            }
+          ],
+          "is_error": null
+        },
+        "error": null
+      }
+    ]
+  },
+  "detailed_comparison": {
+    "trajectory_matches": 1.0,
+    "current_tool_count": 3,
+    "baseline_tool_count": 3,
+    "tool_differences": {
+      "tools_added": [],
+      "tools_removed": [],
+      "tools_common": [
+        "mcp__mcpproxy__upstream_servers"
+      ],
+      "parameter_differences": [
+        {
+          "tool_name": "mcp__mcpproxy__upstream_servers",
+          "current_params": {
+            "operation": "patch",
+            "name": "github-official-work",
+            "patch_json": "{\"env\": {\"GITHUB_PERSONAL_ACCESS_TOKEN\": \"github_pat_11ABCDEFG0123456789_AbCdEf\"}}"
+          },
+          "baseline_params": {
+            "operation": "list"
+          }
+        }
+      ]
+    },
+    "execution_status_comparison": {
+      "current": "SUCCESS",
+      "baseline": "SUCCESS"
+    },
+    "timestamp": "2025-08-27T10:12:09.222230"
+  },
+  "per_invocation_results": [
+    {
+      "invocation": 1,
+      "score": 1.0,
+      "details": "Invocation 1: EXACT MATCH",
+      "actual_tools": [
+        {
+          "name": "mcp__mcpproxy__upstream_servers",
+          "args": {
+            "operation": "list"
+          },
+          "similarity": 1.0
+        }
+      ],
+      "expected_tools": [
+        {
+          "name": "mcp__mcpproxy__upstream_servers",
+          "args": {
+            "operation": "list"
+          }
+        }
+      ]
+    },
+    {
+      "invocation": 2,
+      "score": 1.0,
+      "details": "Invocation 2: EXACT MATCH",
+      "actual_tools": [
+        {
+          "name": "mcp__mcpproxy__upstream_servers",
+          "args": {
+            "operation": "patch",
+            "name": "github-official-work",
+            "patch_json": "{\"env\": {\"GITHUB_PERSONAL_ACCESS_TOKEN\": \"github_pat_11ABCDEFG0123456789_AbCdEf\"}}"
+          },
+          "similarity": 1.0
+        }
+      ],
+      "expected_tools": [
+        {
+          "name": "mcp__mcpproxy__upstream_servers",
+          "args": {
+            "operation": "patch",
+            "name": "github-official-work",
+            "patch_json": "{\"env\": {\"GITHUB_PERSONAL_ACCESS_TOKEN\": \"github_pat_11ABCDEFG0123456789_AbCdEf\"}}"
+          }
+        }
+      ]
+    },
+    {
+      "invocation": 3,
+      "score": 1.0,
+      "details": "Invocation 3: EXACT MATCH",
+      "actual_tools": [
+        {
+          "name": "mcp__mcpproxy__upstream_servers",
+          "args": {
+            "operation": "list"
+          },
+          "similarity": 1.0
+        }
+      ],
+      "expected_tools": [
+        {
+          "name": "mcp__mcpproxy__upstream_servers",
+          "args": {
+            "operation": "list"
+          }
+        }
+      ]
+    }
+  ],
+  "recommendations": [
+    "Excellent trajectory match! Consider this execution as a new baseline."
+  ]
+}

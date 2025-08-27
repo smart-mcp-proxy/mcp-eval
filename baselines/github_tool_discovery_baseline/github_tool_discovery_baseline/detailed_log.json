@@ -1,0 +1,249 @@
+{
+  "scenario": "GitHub Tool Discovery",
+  "execution_time": "2025-08-27T13:43:10.485600",
+  "user_intent": "Show me GitHub repository tools",
+  "expected_trajectory": [
+    {
+      "action": "search_tools",
+      "tool": "mcp__mcpproxy__retrieve_tools",
+      "args": {
+        "query": "GitHub repository"
+      }
+    }
+  ],
+  "success_criteria": [
+    "mcp__mcpproxy__retrieve_tools",
+    "GitHub",
+    "repository"
+  ],
+  "mode": "baseline",
+  "available_tools": {
+    "discovery_method": "failed",
+    "error": "Not connected. Call connect() first.",
+    "discovered_at": "2025-08-27T13:43:10.485256",
+    "tools": []
+  },
+  "messages": [
+    {
+      "timestamp": "2025-08-27T13:43:11.560390",
+      "message_number": 1,
+      "type": "SystemMessage",
+      "content": {
+        "_type": "SystemMessage",
+        "subtype": "init",
+        "data": {
+          "type": "system",
+          "subtype": "init",
+          "cwd": "/Users/user/repos/claude-eval-agents/claude-agent-project",
+          "session_id": "677cdaa0-aa9a-4ff0-ab7f-09dc52e19f63",
+          "tools": [
+            "Task",
+            "Bash",
+            "Glob",
+            "Grep",
+            "LS",
+            "ExitPlanMode",
+            "Read",
+            "Edit",
+            "MultiEdit",
+            "Write",
+            "NotebookEdit",
+            "WebFetch",
+            "TodoWrite",
+            "WebSearch",
+            "BashOutput",
+            "KillBash",
+            "mcp__mcpproxy__call_tool",
+            "mcp__mcpproxy__list_registries",
+            "mcp__mcpproxy__quarantine_security",
+            "mcp__mcpproxy__read_cache",
+            "mcp__mcpproxy__retrieve_tools",
+            "mcp__mcpproxy__search_servers",
+            "mcp__mcpproxy__upstream_servers"
+          ],
+          "mcp_servers": [
+            {
+              "name": "mcpproxy",
+              "status": "connected"
+            }
+          ],
+          "model": "claude-3-5-sonnet-20241022",
+          "permissionMode": "bypassPermissions",
+          "slash_commands": [
+            "add-dir",
+            "agents",
+            "clear",
+            "compact",
+            "config",
+            "context",
+            "cost",
+            "doctor",
+            "exit",
+            "help",
+            "ide",
+            "init",
+            "install-github-app",
+            "mcp",
+            "memory",
+            "migrate-installer",
+            "model",
+            "output-style",
+            "output-style:new",
+            "pr-comments",
+            "release-notes",
+            "resume",
+            "status",
+            "statusline",
+            "bug",
+            "review",
+            "security-review",
+            "terminal-setup",
+            "upgrade",
+            "vim",
+            "permissions",
+            "hooks",
+            "export",
+            "logout",
+            "login",
+            "bashes"
+          ],
+          "apiKeySource": "none",
+          "output_style": "default",
+          "uuid": "cb5da78b-554c-4bcd-aed3-10ac5741d3a8"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-08-27T13:43:14.684924",
+      "message_number": 2,
+      "type": "AssistantMessage",
+      "content": {
+        "_type": "AssistantMessage",
+        "content": [
+          {
+            "text": "I'll search for GitHub repository management tools using the retrieve_tools function."
+          }
+        ],
+        "model": "claude-3-5-sonnet-20241022"
+      }
+    },
+    {
+      "timestamp": "2025-08-27T13:43:15.508547",
+      "message_number": 3,
+      "type": "AssistantMessage",
+      "content": {
+        "_type": "AssistantMessage",
+        "content": [
+          {
+            "id": "toolu_013yCQYwGmy1mcPhrvwi4tz2",
+            "name": "mcp__mcpproxy__retrieve_tools",
+            "input": {
+              "query": "GitHub repository management create fork delete"
+            }
+          }
+        ],
+        "model": "claude-3-5-sonnet-20241022"
+      }
+    },
+    {
+      "timestamp": "2025-08-27T13:43:15.605063",
+      "message_number": 4,
+      "type": "UserMessage",
+      "content": {
+        "_type": "UserMessage",
+        "content": [
+          {
+            "tool_use_id": "toolu_013yCQYwGmy1mcPhrvwi4tz2",
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"query\":\"GitHub repository management create fork delete\",\"tools\":[{\"description\":\"Fork a GitHub repository to your account or specified organization\",\"inputSchema\":{\"properties\":{\"organization\":{\"description\":\"Organization to fork to\",\"type\":\"string\"},\"owner\":{\"description\":\"Repository owner\",\"type\":\"string\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\"],\"type\":\"object\"},\"name\":\"fork_repository\",\"score\":0.06624129696131734,\"server\":\"github-official-work\"},{\"description\":\"List workflow runs for a specific workflow\",\"inputSchema\":{\"properties\":{\"actor\":{\"description\":\"Returns someone's workflow runs. Use the login for the user who created the workflow run.\",\"type\":\"string\"},\"branch\":{\"description\":\"Returns workflow runs associated with a branch. Use the name of the branch.\",\"type\":\"string\"},\"event\":{\"description\":\"Returns workflow runs for a specific event type\",\"enum\":[\"branch_protection_rule\",\"check_run\",\"check_suite\",\"create\",\"delete\",\"deployment\",\"deployment_status\",\"discussion\",\"discussion_comment\",\"fork\",\"gollum\",\"issue_comment\",\"issues\",\"label\",\"merge_group\",\"milestone\",\"page_build\",\"public\",\"pull_request\",\"pull_request_review\",\"pull_request_review_comment\",\"pull_request_target\",\"push\",\"registry_package\",\"release\",\"repository_dispatch\",\"schedule\",\"status\",\"watch\",\"workflow_call\",\"workflow_dispatch\",\"workflow_run\"],\"type\":\"string\"},\"owner\":{\"description\":\"Repository owner\",\"type\":\"string\"},\"page\":{\"description\":\"The page number of the results to fetch\",\"type\":\"number\"},\"per_page\":{\"description\":\"The number of results per page (max 100)\",\"type\":\"number\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"},\"status\":{\"description\":\"Returns workflow runs with the check run status\",\"enum\":[\"queued\",\"in_progress\",\"completed\",\"requested\",\"waiting\"],\"type\":\"string\"},\"workflow_id\":{\"description\":\"The workflow ID or workflow file name\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"workflow_id\"],\"type\":\"object\"},\"name\":\"list_workflow_runs\",\"score\":0.057337059076925635,\"server\":\"github-official-work\"},{\"description\":\"Delete a file from a GitHub repository\",\"inputSchema\":{\"properties\":{\"branch\":{\"description\":\"Branch to delete the file from\",\"type\":\"string\"},\"message\":{\"description\":\"Commit message\",\"type\":\"string\"},\"owner\":{\"description\":\"Repository owner (username or organization)\",\"type\":\"string\"},\"path\":{\"description\":\"Path to the file to delete\",\"type\":\"string\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"path\",\"message\",\"branch\"],\"type\":\"object\"},\"name\":\"delete_file\",\"score\":0.04395524072493356,\"server\":\"github-official-work\"},{\"description\":\"Create or update a single file in a GitHub repository. If updating, you must provide the SHA of the file you want to update. Use this tool to create or update a file in a GitHub repository remotely; do not use it for local file operations.\",\"inputSchema\":{\"properties\":{\"branch\":{\"description\":\"Branch to create/update the file in\",\"type\":\"string\"},\"content\":{\"description\":\"Content of the file\",\"type\":\"string\"},\"message\":{\"description\":\"Commit message\",\"type\":\"string\"},\"owner\":{\"description\":\"Repository owner (username or organization)\",\"type\":\"string\"},\"path\":{\"description\":\"Path where to create/update the file\",\"type\":\"string\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"},\"sha\":{\"description\":\"SHA of file being replaced (for updates)\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"path\",\"content\",\"message\",\"branch\"],\"type\":\"object\"},\"name\":\"create_or_update_file\",\"score\":0.03475463883527826,\"server\":\"github-official-work\"},{\"description\":\"Create a new GitHub repository in your account\",\"inputSchema\":{\"properties\":{\"autoInit\":{\"description\":\"Initialize with README\",\"type\":\"boolean\"},\"description\":{\"description\":\"Repository description\",\"type\":\"string\"},\"name\":{\"description\":\"Repository name\",\"type\":\"string\"},\"private\":{\"description\":\"Whether repo should be private\",\"type\":\"boolean\"}},\"required\":[\"name\"],\"type\":\"object\"},\"name\":\"create_repository\",\"score\":0.030437866888826506,\"server\":\"github-official-work\"},{\"description\":\"Create a new branch in a GitHub repository\",\"inputSchema\":{\"properties\":{\"branch\":{\"description\":\"Name for new branch\",\"type\":\"string\"},\"from_branch\":{\"description\":\"Source branch (defaults to repo default)\",\"type\":\"string\"},\"owner\":{\"description\":\"Repository owner\",\"type\":\"string\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"branch\"],\"type\":\"object\"},\"name\":\"create_branch\",\"score\":0.028577742269375414,\"server\":\"github-official-work\"},{\"description\":\"Create a new pull request in a GitHub repository.\",\"inputSchema\":{\"properties\":{\"base\":{\"description\":\"Branch to merge into\",\"type\":\"string\"},\"body\":{\"description\":\"PR description\",\"type\":\"string\"},\"draft\":{\"description\":\"Create as draft PR\",\"type\":\"boolean\"},\"head\":{\"description\":\"Branch containing changes\",\"type\":\"string\"},\"maintainer_can_modify\":{\"description\":\"Allow maintainer edits\",\"type\":\"boolean\"},\"owner\":{\"description\":\"Repository owner\",\"type\":\"string\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"},\"title\":{\"description\":\"PR title\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"title\",\"head\",\"base\"],\"type\":\"object\"},\"name\":\"create_pull_request\",\"score\":0.0284981167248322,\"server\":\"github-official-work\"},{\"description\":\"Manage a repository notification subscription: ignore, watch, or delete repository notifications subscription for the provided repository.\",\"inputSchema\":{\"properties\":{\"action\":{\"description\":\"Action to perform: ignore, watch, or delete the repository notification subscription.\",\"enum\":[\"ignore\",\"watch\",\"delete\"],\"type\":\"string\"},\"owner\":{\"description\":\"The account owner of the repository.\",\"type\":\"string\"},\"repo\":{\"description\":\"The name of the repository.\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"action\"],\"type\":\"object\"},\"name\":\"manage_repository_notification_subscription\",\"score\":0.027082633035195276,\"server\":\"github-official-work\"},{\"description\":\"Create a new issue in a GitHub repository.\",\"inputSchema\":{\"properties\":{\"assignees\":{\"description\":\"Usernames to assign to this issue\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"body\":{\"description\":\"Issue body content\",\"type\":\"string\"},\"labels\":{\"description\":\"Labels to apply to this issue\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"milestone\":{\"description\":\"Milestone number\",\"type\":\"number\"},\"owner\":{\"description\":\"Repository owner\",\"type\":\"string\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"},\"title\":{\"description\":\"Issue title\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"title\"],\"type\":\"object\"},\"name\":\"create_issue\",\"score\":0.02299096160051122,\"server\":\"github-official-work\"},{\"description\":\"Delete logs for a workflow run\",\"inputSchema\":{\"properties\":{\"owner\":{\"description\":\"Repository owner\",\"type\":\"string\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"},\"run_id\":{\"description\":\"The unique identifier of the workflow run\",\"type\":\"number\"}},\"required\":[\"owner\",\"repo\",\"run_id\"],\"type\":\"object\"},\"name\":\"delete_workflow_run_logs\",\"score\":0.019227288331259716,\"server\":\"github-official-work\"},{\"description\":\"Delete the requester's latest pending pull request review. Use this after the user decides not to submit a pending review, if you don't know if they already created one then check first.\",\"inputSchema\":{\"properties\":{\"owner\":{\"description\":\"Repository owner\",\"type\":\"string\"},\"pullNumber\":{\"description\":\"Pull request number\",\"type\":\"number\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"pullNumber\"],\"type\":\"object\"},\"name\":\"delete_pending_pull_request_review\",\"score\":0.01612544144397899,\"server\":\"github-official-work\"},{\"description\":\"Create a pending review for a pull request. Call this first before attempting to add comments to a pending review, and ultimately submitting it. A pending pull request review means a pull request review, it is pending because you create it first and submit it later, and the PR author will not see it until it is submitted.\",\"inputSchema\":{\"properties\":{\"commitID\":{\"description\":\"SHA of commit to review\",\"type\":\"string\"},\"owner\":{\"description\":\"Repository owner\",\"type\":\"string\"},\"pullNumber\":{\"description\":\"Pull request number\",\"type\":\"number\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"pullNumber\"],\"type\":\"object\"},\"name\":\"create_pending_pull_request_review\",\"score\":0.015921207310709506,\"server\":\"github-official-work\"},{\"description\":\"Manage a notification subscription: ignore, watch, or delete a notification thread subscription.\",\"inputSchema\":{\"properties\":{\"action\":{\"description\":\"Action to perform: ignore, watch, or delete the notification subscription.\",\"enum\":[\"ignore\",\"watch\",\"delete\"],\"type\":\"string\"},\"notificationID\":{\"description\":\"The ID of the notification thread.\",\"type\":\"string\"}},\"required\":[\"notificationID\",\"action\"],\"type\":\"object\"},\"name\":\"manage_notification_subscription\",\"score\":0.012919386865504048,\"server\":\"github-official-work\"},{\"description\":\"Create and submit a review for a pull request without review comments.\",\"inputSchema\":{\"properties\":{\"body\":{\"description\":\"Review comment text\",\"type\":\"string\"},\"commitID\":{\"description\":\"SHA of commit to review\",\"type\":\"string\"},\"event\":{\"description\":\"Review action to perform\",\"enum\":[\"APPROVE\",\"REQUEST_CHANGES\",\"COMMENT\"],\"type\":\"string\"},\"owner\":{\"description\":\"Repository owner\",\"type\":\"string\"},\"pullNumber\":{\"description\":\"Pull request number\",\"type\":\"number\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"pullNumber\",\"body\",\"event\"],\"type\":\"object\"},\"name\":\"create_and_submit_pull_request_review\",\"score\":0.012249279665372884,\"server\":\"github-official-work\"},{\"description\":\"Get details of a specific issue in a GitHub repository.\",\"inputSchema\":{\"properties\":{\"issue_number\":{\"description\":\"The number of the issue\",\"type\":\"number\"},\"owner\":{\"description\":\"The owner of the repository\",\"type\":\"string\"},\"repo\":{\"description\":\"The name of the repository\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"issue_number\"],\"type\":\"object\"},\"name\":\"get_issue\",\"score\":0.00759599133624101,\"server\":\"github-official-work\"}],\"total\":15}"
+              }
+            ],
+            "is_error": null
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2025-08-27T13:43:22.462272",
+      "message_number": 5,
+      "type": "AssistantMessage",
+      "content": {
+        "_type": "AssistantMessage",
+        "content": [
+          {
+            "text": "Here are the key GitHub repository management tools available:\n\n1. Repository Creation/Management:\n- `create_repository`: Create a new GitHub repository\n- `fork_repository`: Fork an existing repository\n- `delete_file`: Delete a file from a repository\n- `create_or_update_file`: Create or update files in a repository\n- `create_branch`: Create a new branch\n\n2. Pull Request & Issue Management:\n- `create_pull_request`: Create new pull requests\n- `create_issue`: Create new issues\n- `create_and_submit_pull_request_review`: Submit PR reviews\n- `get_issue`: Get issue details\n\n3. Workflow Management:\n- `list_workflow_runs`: List GitHub Actions workflow runs\n- `delete_workflow_run_logs`: Delete workflow run logs\n\n4. Notifications:\n- `manage_repository_notification_subscription`: Manage repository notifications\n- `manage_notification_subscription`: Manage thread notifications\n\nEach tool has specific required parameters. Let me know if you'd like details about using any particular tool!"
+          }
+        ],
+        "model": "claude-3-5-sonnet-20241022"
+      }
+    },
+    {
+      "timestamp": "2025-08-27T13:43:22.468629",
+      "message_number": 6,
+      "type": "ResultMessage",
+      "content": {
+        "_type": "ResultMessage",
+        "subtype": "success",
+        "duration_ms": 10927,
+        "duration_api_ms": 10799,
+        "is_error": false,
+        "num_turns": 4,
+        "session_id": "677cdaa0-aa9a-4ff0-ab7f-09dc52e19f63",
+        "total_cost_usd": 0.08990130000000002,
+        "usage": {
+          "input_tokens": 5,
+          "cache_creation_input_tokens": 2561,
+          "cache_read_input_tokens": 18631,
+          "output_tokens": 239,
+          "server_tool_use": {
+            "web_search_requests": 0
+          },
+          "service_tier": "standard"
+        },
+        "result": "Here are the key GitHub repository management tools available:\n\n1. Repository Creation/Management:\n- `create_repository`: Create a new GitHub repository\n- `fork_repository`: Fork an existing repository\n- `delete_file`: Delete a file from a repository\n- `create_or_update_file`: Create or update files in a repository\n- `create_branch`: Create a new branch\n\n2. Pull Request & Issue Management:\n- `create_pull_request`: Create new pull requests\n- `create_issue`: Create new issues\n- `create_and_submit_pull_request_review`: Submit PR reviews\n- `get_issue`: Get issue details\n\n3. Workflow Management:\n- `list_workflow_runs`: List GitHub Actions workflow runs\n- `delete_workflow_run_logs`: Delete workflow run logs\n\n4. Notifications:\n- `manage_repository_notification_subscription`: Manage repository notifications\n- `manage_notification_subscription`: Manage thread notifications\n\nEach tool has specific required parameters. Let me know if you'd like details about using any particular tool!"
+      }
+    }
+  ],
+  "tool_calls_summary": [
+    {
+      "tool_name": "mcp__mcpproxy__retrieve_tools",
+      "tool_id": "toolu_013yCQYwGmy1mcPhrvwi4tz2",
+      "tool_input": {
+        "query": "GitHub repository management create fork delete"
+      },
+      "timestamp": "2025-08-27T13:43:15.508701",
+      "response": {
+        "content": [
+          {
+            "type": "text",
+            "text": [
+              {
+                "type": "text",
+                "text": "{\"query\":\"GitHub repository management create fork delete\",\"tools\":[{\"description\":\"Fork a GitHub repository to your account or specified organization\",\"inputSchema\":{\"properties\":{\"organization\":{\"description\":\"Organization to fork to\",\"type\":\"string\"},\"owner\":{\"description\":\"Repository owner\",\"type\":\"string\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\"],\"type\":\"object\"},\"name\":\"fork_repository\",\"score\":0.06624129696131734,\"server\":\"github-official-work\"},{\"description\":\"List workflow runs for a specific workflow\",\"inputSchema\":{\"properties\":{\"actor\":{\"description\":\"Returns someone's workflow runs. Use the login for the user who created the workflow run.\",\"type\":\"string\"},\"branch\":{\"description\":\"Returns workflow runs associated with a branch. Use the name of the branch.\",\"type\":\"string\"},\"event\":{\"description\":\"Returns workflow runs for a specific event type\",\"enum\":[\"branch_protection_rule\",\"check_run\",\"check_suite\",\"create\",\"delete\",\"deployment\",\"deployment_status\",\"discussion\",\"discussion_comment\",\"fork\",\"gollum\",\"issue_comment\",\"issues\",\"label\",\"merge_group\",\"milestone\",\"page_build\",\"public\",\"pull_request\",\"pull_request_review\",\"pull_request_review_comment\",\"pull_request_target\",\"push\",\"registry_package\",\"release\",\"repository_dispatch\",\"schedule\",\"status\",\"watch\",\"workflow_call\",\"workflow_dispatch\",\"workflow_run\"],\"type\":\"string\"},\"owner\":{\"description\":\"Repository owner\",\"type\":\"string\"},\"page\":{\"description\":\"The page number of the results to fetch\",\"type\":\"number\"},\"per_page\":{\"description\":\"The number of results per page (max 100)\",\"type\":\"number\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"},\"status\":{\"description\":\"Returns workflow runs with the check run status\",\"enum\":[\"queued\",\"in_progress\",\"completed\",\"requested\",\"waiting\"],\"type\":\"string\"},\"workflow_id\":{\"description\":\"The workflow ID or workflow file name\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"workflow_id\"],\"type\":\"object\"},\"name\":\"list_workflow_runs\",\"score\":0.057337059076925635,\"server\":\"github-official-work\"},{\"description\":\"Delete a file from a GitHub repository\",\"inputSchema\":{\"properties\":{\"branch\":{\"description\":\"Branch to delete the file from\",\"type\":\"string\"},\"message\":{\"description\":\"Commit message\",\"type\":\"string\"},\"owner\":{\"description\":\"Repository owner (username or organization)\",\"type\":\"string\"},\"path\":{\"description\":\"Path to the file to delete\",\"type\":\"string\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"path\",\"message\",\"branch\"],\"type\":\"object\"},\"name\":\"delete_file\",\"score\":0.04395524072493356,\"server\":\"github-official-work\"},{\"description\":\"Create or update a single file in a GitHub repository. If updating, you must provide the SHA of the file you want to update. Use this tool to create or update a file in a GitHub repository remotely; do not use it for local file operations.\",\"inputSchema\":{\"properties\":{\"branch\":{\"description\":\"Branch to create/update the file in\",\"type\":\"string\"},\"content\":{\"description\":\"Content of the file\",\"type\":\"string\"},\"message\":{\"description\":\"Commit message\",\"type\":\"string\"},\"owner\":{\"description\":\"Repository owner (username or organization)\",\"type\":\"string\"},\"path\":{\"description\":\"Path where to create/update the file\",\"type\":\"string\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"},\"sha\":{\"description\":\"SHA of file being replaced (for updates)\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"path\",\"content\",\"message\",\"branch\"],\"type\":\"object\"},\"name\":\"create_or_update_file\",\"score\":0.03475463883527826,\"server\":\"github-official-work\"},{\"description\":\"Create a new GitHub repository in your account\",\"inputSchema\":{\"properties\":{\"autoInit\":{\"description\":\"Initialize with README\",\"type\":\"boolean\"},\"description\":{\"description\":\"Repository description\",\"type\":\"string\"},\"name\":{\"description\":\"Repository name\",\"type\":\"string\"},\"private\":{\"description\":\"Whether repo should be private\",\"type\":\"boolean\"}},\"required\":[\"name\"],\"type\":\"object\"},\"name\":\"create_repository\",\"score\":0.030437866888826506,\"server\":\"github-official-work\"},{\"description\":\"Create a new branch in a GitHub repository\",\"inputSchema\":{\"properties\":{\"branch\":{\"description\":\"Name for new branch\",\"type\":\"string\"},\"from_branch\":{\"description\":\"Source branch (defaults to repo default)\",\"type\":\"string\"},\"owner\":{\"description\":\"Repository owner\",\"type\":\"string\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"branch\"],\"type\":\"object\"},\"name\":\"create_branch\",\"score\":0.028577742269375414,\"server\":\"github-official-work\"},{\"description\":\"Create a new pull request in a GitHub repository.\",\"inputSchema\":{\"properties\":{\"base\":{\"description\":\"Branch to merge into\",\"type\":\"string\"},\"body\":{\"description\":\"PR description\",\"type\":\"string\"},\"draft\":{\"description\":\"Create as draft PR\",\"type\":\"boolean\"},\"head\":{\"description\":\"Branch containing changes\",\"type\":\"string\"},\"maintainer_can_modify\":{\"description\":\"Allow maintainer edits\",\"type\":\"boolean\"},\"owner\":{\"description\":\"Repository owner\",\"type\":\"string\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"},\"title\":{\"description\":\"PR title\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"title\",\"head\",\"base\"],\"type\":\"object\"},\"name\":\"create_pull_request\",\"score\":0.0284981167248322,\"server\":\"github-official-work\"},{\"description\":\"Manage a repository notification subscription: ignore, watch, or delete repository notifications subscription for the provided repository.\",\"inputSchema\":{\"properties\":{\"action\":{\"description\":\"Action to perform: ignore, watch, or delete the repository notification subscription.\",\"enum\":[\"ignore\",\"watch\",\"delete\"],\"type\":\"string\"},\"owner\":{\"description\":\"The account owner of the repository.\",\"type\":\"string\"},\"repo\":{\"description\":\"The name of the repository.\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"action\"],\"type\":\"object\"},\"name\":\"manage_repository_notification_subscription\",\"score\":0.027082633035195276,\"server\":\"github-official-work\"},{\"description\":\"Create a new issue in a GitHub repository.\",\"inputSchema\":{\"properties\":{\"assignees\":{\"description\":\"Usernames to assign to this issue\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"body\":{\"description\":\"Issue body content\",\"type\":\"string\"},\"labels\":{\"description\":\"Labels to apply to this issue\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"milestone\":{\"description\":\"Milestone number\",\"type\":\"number\"},\"owner\":{\"description\":\"Repository owner\",\"type\":\"string\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"},\"title\":{\"description\":\"Issue title\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"title\"],\"type\":\"object\"},\"name\":\"create_issue\",\"score\":0.02299096160051122,\"server\":\"github-official-work\"},{\"description\":\"Delete logs for a workflow run\",\"inputSchema\":{\"properties\":{\"owner\":{\"description\":\"Repository owner\",\"type\":\"string\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"},\"run_id\":{\"description\":\"The unique identifier of the workflow run\",\"type\":\"number\"}},\"required\":[\"owner\",\"repo\",\"run_id\"],\"type\":\"object\"},\"name\":\"delete_workflow_run_logs\",\"score\":0.019227288331259716,\"server\":\"github-official-work\"},{\"description\":\"Delete the requester's latest pending pull request review. Use this after the user decides not to submit a pending review, if you don't know if they already created one then check first.\",\"inputSchema\":{\"properties\":{\"owner\":{\"description\":\"Repository owner\",\"type\":\"string\"},\"pullNumber\":{\"description\":\"Pull request number\",\"type\":\"number\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"pullNumber\"],\"type\":\"object\"},\"name\":\"delete_pending_pull_request_review\",\"score\":0.01612544144397899,\"server\":\"github-official-work\"},{\"description\":\"Create a pending review for a pull request. Call this first before attempting to add comments to a pending review, and ultimately submitting it. A pending pull request review means a pull request review, it is pending because you create it first and submit it later, and the PR author will not see it until it is submitted.\",\"inputSchema\":{\"properties\":{\"commitID\":{\"description\":\"SHA of commit to review\",\"type\":\"string\"},\"owner\":{\"description\":\"Repository owner\",\"type\":\"string\"},\"pullNumber\":{\"description\":\"Pull request number\",\"type\":\"number\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"pullNumber\"],\"type\":\"object\"},\"name\":\"create_pending_pull_request_review\",\"score\":0.015921207310709506,\"server\":\"github-official-work\"},{\"description\":\"Manage a notification subscription: ignore, watch, or delete a notification thread subscription.\",\"inputSchema\":{\"properties\":{\"action\":{\"description\":\"Action to perform: ignore, watch, or delete the notification subscription.\",\"enum\":[\"ignore\",\"watch\",\"delete\"],\"type\":\"string\"},\"notificationID\":{\"description\":\"The ID of the notification thread.\",\"type\":\"string\"}},\"required\":[\"notificationID\",\"action\"],\"type\":\"object\"},\"name\":\"manage_notification_subscription\",\"score\":0.012919386865504048,\"server\":\"github-official-work\"},{\"description\":\"Create and submit a review for a pull request without review comments.\",\"inputSchema\":{\"properties\":{\"body\":{\"description\":\"Review comment text\",\"type\":\"string\"},\"commitID\":{\"description\":\"SHA of commit to review\",\"type\":\"string\"},\"event\":{\"description\":\"Review action to perform\",\"enum\":[\"APPROVE\",\"REQUEST_CHANGES\",\"COMMENT\"],\"type\":\"string\"},\"owner\":{\"description\":\"Repository owner\",\"type\":\"string\"},\"pullNumber\":{\"description\":\"Pull request number\",\"type\":\"number\"},\"repo\":{\"description\":\"Repository name\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"pullNumber\",\"body\",\"event\"],\"type\":\"object\"},\"name\":\"create_and_submit_pull_request_review\",\"score\":0.012249279665372884,\"server\":\"github-official-work\"},{\"description\":\"Get details of a specific issue in a GitHub repository.\",\"inputSchema\":{\"properties\":{\"issue_number\":{\"description\":\"The number of the issue\",\"type\":\"number\"},\"owner\":{\"description\":\"The owner of the repository\",\"type\":\"string\"},\"repo\":{\"description\":\"The name of the repository\",\"type\":\"string\"}},\"required\":[\"owner\",\"repo\",\"issue_number\"],\"type\":\"object\"},\"name\":\"get_issue\",\"score\":0.00759599133624101,\"server\":\"github-official-work\"}],\"total\":15}"
+              }
+            ]
+          }
+        ],
+        "is_error": null
+      },
+      "error": null
+    }
+  ],
+  "execution_status": "SUCCESS",
+  "failure_analysis": {
+    "total_tools": 1,
+    "failed_tools": 0,
+    "failures": [],
+    "success_rate": 1.0
+  },
+  "early_stopped": false,
+  "mcpproxy_git_info": {
+    "git_hash": "5d0898172e503cbd79fbfd0b355bc7aa21c93f55",
+    "git_hash_short": "5d089817",
+    "commit_message": "Update mcp-go dependency to v0.38.0 in go.mod and go.sum (#42)",
+    "commit_date": "2025-08-21 09:31:55 +0300",
+    "branch": "main"
+  }
+}

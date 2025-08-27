@@ -1,0 +1,249 @@
+{
+  "scenario": "List All Servers",
+  "execution_time": "2025-08-27T12:24:29.987505",
+  "user_intent": "Show me all MCP servers",
+  "expected_trajectory": [
+    {
+      "action": "list_servers",
+      "tool": "mcp__mcpproxy__upstream_servers",
+      "args": {
+        "operation": "list"
+      }
+    }
+  ],
+  "success_criteria": [
+    "mcp__mcpproxy__upstream_servers",
+    "list",
+    "servers"
+  ],
+  "mode": "baseline",
+  "available_tools": {
+    "discovery_method": "failed",
+    "error": "Not connected. Call connect() first.",
+    "discovered_at": "2025-08-27T12:24:29.987281",
+    "tools": []
+  },
+  "messages": [
+    {
+      "timestamp": "2025-08-27T12:24:31.606055",
+      "message_number": 1,
+      "type": "SystemMessage",
+      "content": {
+        "_type": "SystemMessage",
+        "subtype": "init",
+        "data": {
+          "type": "system",
+          "subtype": "init",
+          "cwd": "/Users/user/repos/claude-eval-agents/claude-agent-project",
+          "session_id": "2d394963-8666-4aee-822b-e321953a8c0d",
+          "tools": [
+            "Task",
+            "Bash",
+            "Glob",
+            "Grep",
+            "LS",
+            "ExitPlanMode",
+            "Read",
+            "Edit",
+            "MultiEdit",
+            "Write",
+            "NotebookEdit",
+            "WebFetch",
+            "TodoWrite",
+            "WebSearch",
+            "BashOutput",
+            "KillBash",
+            "mcp__mcpproxy__call_tool",
+            "mcp__mcpproxy__list_registries",
+            "mcp__mcpproxy__quarantine_security",
+            "mcp__mcpproxy__read_cache",
+            "mcp__mcpproxy__retrieve_tools",
+            "mcp__mcpproxy__search_servers",
+            "mcp__mcpproxy__upstream_servers"
+          ],
+          "mcp_servers": [
+            {
+              "name": "mcpproxy",
+              "status": "connected"
+            }
+          ],
+          "model": "claude-3-5-sonnet-20241022",
+          "permissionMode": "bypassPermissions",
+          "slash_commands": [
+            "add-dir",
+            "agents",
+            "clear",
+            "compact",
+            "config",
+            "context",
+            "cost",
+            "doctor",
+            "exit",
+            "help",
+            "ide",
+            "init",
+            "install-github-app",
+            "mcp",
+            "memory",
+            "migrate-installer",
+            "model",
+            "output-style",
+            "output-style:new",
+            "pr-comments",
+            "release-notes",
+            "resume",
+            "status",
+            "statusline",
+            "bug",
+            "review",
+            "security-review",
+            "terminal-setup",
+            "upgrade",
+            "vim",
+            "permissions",
+            "hooks",
+            "export",
+            "logout",
+            "login",
+            "bashes"
+          ],
+          "apiKeySource": "none",
+          "output_style": "default",
+          "uuid": "014459f3-7067-43fd-b756-49a68c5b02f4"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:24:35.799798",
+      "message_number": 2,
+      "type": "AssistantMessage",
+      "content": {
+        "_type": "AssistantMessage",
+        "content": [
+          {
+            "text": "I'll help you list all the MCP servers using the upstream_servers tool with the list operation."
+          }
+        ],
+        "model": "claude-3-5-sonnet-20241022"
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:24:36.090392",
+      "message_number": 3,
+      "type": "AssistantMessage",
+      "content": {
+        "_type": "AssistantMessage",
+        "content": [
+          {
+            "id": "toolu_01QCQmfyyCJDpxJG85q556mV",
+            "name": "mcp__mcpproxy__upstream_servers",
+            "input": {
+              "operation": "list"
+            }
+          }
+        ],
+        "model": "claude-3-5-sonnet-20241022"
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:24:36.258664",
+      "message_number": 4,
+      "type": "UserMessage",
+      "content": {
+        "_type": "UserMessage",
+        "content": [
+          {
+            "tool_use_id": "toolu_01QCQmfyyCJDpxJG85q556mV",
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"servers\":[{\"name\":\"everything-2\",\"protocol\":\"stdio\",\"command\":\"/usr/bin/docker\",\"args\":[\"run\",\"-i\",\"--rm\",\"mcp/everything\"],\"enabled\":true,\"quarantined\":false,\"created\":\"2025-08-26T20:00:00Z\",\"updated\":\"2025-08-27T09:24:25.132310419Z\"}],\"total\":1}"
+              }
+            ],
+            "is_error": null
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:24:40.414150",
+      "message_number": 5,
+      "type": "AssistantMessage",
+      "content": {
+        "_type": "AssistantMessage",
+        "content": [
+          {
+            "text": "Currently, there is 1 MCP server configured:\n\n1. Name: everything-2\n   - Protocol: stdio\n   - Command: Docker-based execution of mcp/everything\n   - Status: Enabled and not quarantined\n   - Created: Aug 26, 2025\n   - Last Updated: Aug 27, 2025\n\nThis server is running and available for use. Would you like to know more details about this server or would you like to perform any other operations with it?"
+          }
+        ],
+        "model": "claude-3-5-sonnet-20241022"
+      }
+    },
+    {
+      "timestamp": "2025-08-27T12:24:40.434078",
+      "message_number": 6,
+      "type": "ResultMessage",
+      "content": {
+        "_type": "ResultMessage",
+        "subtype": "success",
+        "duration_ms": 8838,
+        "duration_api_ms": 8620,
+        "is_error": false,
+        "num_turns": 4,
+        "session_id": "2d394963-8666-4aee-822b-e321953a8c0d",
+        "total_cost_usd": 0.07799444999999999,
+        "usage": {
+          "input_tokens": 5,
+          "cache_creation_input_tokens": 185,
+          "cache_read_input_tokens": 18354,
+          "output_tokens": 113,
+          "server_tool_use": {
+            "web_search_requests": 0
+          },
+          "service_tier": "standard"
+        },
+        "result": "Currently, there is 1 MCP server configured:\n\n1. Name: everything-2\n   - Protocol: stdio\n   - Command: Docker-based execution of mcp/everything\n   - Status: Enabled and not quarantined\n   - Created: Aug 26, 2025\n   - Last Updated: Aug 27, 2025\n\nThis server is running and available for use. Would you like to know more details about this server or would you like to perform any other operations with it?"
+      }
+    }
+  ],
+  "tool_calls_summary": [
+    {
+      "tool_name": "mcp__mcpproxy__upstream_servers",
+      "tool_id": "toolu_01QCQmfyyCJDpxJG85q556mV",
+      "tool_input": {
+        "operation": "list"
+      },
+      "timestamp": "2025-08-27T12:24:36.090460",
+      "response": {
+        "content": [
+          {
+            "type": "text",
+            "text": [
+              {
+                "type": "text",
+                "text": "{\"servers\":[{\"name\":\"everything-2\",\"protocol\":\"stdio\",\"command\":\"/usr/bin/docker\",\"args\":[\"run\",\"-i\",\"--rm\",\"mcp/everything\"],\"enabled\":true,\"quarantined\":false,\"created\":\"2025-08-26T20:00:00Z\",\"updated\":\"2025-08-27T09:24:25.132310419Z\"}],\"total\":1}"
+              }
+            ]
+          }
+        ],
+        "is_error": null
+      },
+      "error": null
+    }
+  ],
+  "execution_status": "SUCCESS",
+  "failure_analysis": {
+    "total_tools": 1,
+    "failed_tools": 0,
+    "failures": [],
+    "success_rate": 1.0
+  },
+  "early_stopped": false,
+  "mcpproxy_git_info": {
+    "git_hash": "5d0898172e503cbd79fbfd0b355bc7aa21c93f55",
+    "git_hash_short": "5d089817",
+    "commit_message": "Update mcp-go dependency to v0.38.0 in go.mod and go.sum (#42)",
+    "commit_date": "2025-08-21 09:31:55 +0300",
+    "branch": "main"
+  }
+}

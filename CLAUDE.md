@@ -1,5 +1,27 @@
 # MCP Evaluation Utility
 
+## Global Development Guidelines
+
+### Git Commit Standards
+
+**IMPORTANT**: When making git commits across all projects, use clean commit messages without Claude Code attribution:
+
+- ❌ **DO NOT include**: `🤖 Generated with [Claude Code](https://claude.ai/code)`
+- ❌ **DO NOT include**: `Co-Authored-By: Claude <noreply@anthropic.com>`
+- ✅ **DO include**: Clear, descriptive commit messages focusing on the actual changes made
+
+**Example of proper commit message format:**
+```
+Fix hardcoded paths and make project configurable
+
+- Remove hardcoded user paths from Python code
+- Add environment variable configuration with .env.example
+- Update shell scripts to use relative paths
+- Test all functionality after changes
+```
+
+This rule applies to all repositories and projects to maintain clean git history.
+
 ## Project Overview
 
 A command-line utility to evaluate MCP (Model Context Protocol) servers and tools effectiveness from a user perspective. The tool executes user scenarios, records detailed interaction logs, compares actual vs expected trajectories, and provides quantitative metrics using **sophisticated similarity-based trajectory evaluation** that goes beyond simple exact matching.

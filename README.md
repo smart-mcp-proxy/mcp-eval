@@ -8,6 +8,11 @@ A comprehensive command-line tool for evaluating MCP (Model Context Protocol) se
 cp .env.example .env                                    # Configure paths
 pip install -e .                                       # Install as package
 ./testing/reset-mcpproxy.sh                            # Start Docker MCPProxy
+
+# Pytest-style runner (recommended)
+PYTHONPATH=src uv run python -m mcp_eval.cli test --scenario scenarios/list_all_servers.yaml
+
+# Or traditional workflow
 PYTHONPATH=src uv run python -m mcp_eval.cli record --scenario scenarios/search_tools_simple.yaml
 PYTHONPATH=src uv run python -m mcp_eval.cli compare --scenario scenarios/search_tools_simple.yaml --baseline baselines/search_tools_simple_baseline/search_tools_simple_baseline
 ```
@@ -247,7 +252,56 @@ PYTHONPATH=src uv run python -m mcp_eval.cli compare --scenario <scenario_file> 
 
 # Run multiple scenarios in batch
 PYTHONPATH=src uv run python -m mcp_eval.cli batch --scenarios <scenarios_dir> [--output <output_dir>]
+
+# Test runner - pytest-style scenario execution with compact output
+PYTHONPATH=src uv run python -m mcp_eval.cli test [--tag <tag>] [--scenario <file>] [--fail-fast]
 ```
+
+### Test Command - Pytest-Style Runner
+
+The `test` command provides a pytest-style interface for running MCP scenarios with compact output, automatic MCPProxy state management, and flexible filtering:
+
+```bash
+# Run all enabled scenarios
+PYTHONPATH=src uv run python -m mcp_eval.cli test
+
+# Filter scenarios by tags (security, server_management, tool_discovery, etc.)
+PYTHONPATH=src uv run python -m mcp_eval.cli test --tag security --tag quarantine
+
+# Run specific scenario files
+PYTHONPATH=src uv run python -m mcp_eval.cli test --scenario scenarios/list_all_servers.yaml --scenario scenarios/search_tools_simple.yaml
+
+# Stop on first failure (like pytest -x)
+PYTHONPATH=src uv run python -m mcp_eval.cli test --tag server_management --fail-fast
+
+# Verbose output for debugging
+PYTHONPATH=src uv run python -m mcp_eval.cli test --scenario scenarios/debug_scenario.yaml --verbose
+```
+
+**Output Format:**
+```
+🧪 Running 3 scenarios
+   Filtered by tags: security
+
+list_all_servers               PASS   1.00
+search_tools_simple            FAIL   0.54
+new_scenario                   RECORDED    N/A
+
+✅ 1 passed, 1 recorded, 1 failed
+```
+
+**Test Runner Features:**
+- **Automatic MCPProxy Restart**: Ensures clean state between test runs
+- **Baseline Comparison**: Compares against existing baselines if available, records new ones otherwise
+- **Tag Filtering**: Filter scenarios using tags like `security`, `server_management`, `tool_discovery`
+- **File Selection**: Run specific scenario files instead of entire directories
+- **Compact Output**: Pytest-style output showing scenario name, status (PASS/FAIL/RECORDED/ERROR), and similarity score
+- **Fail-Fast Mode**: Stop execution on first failure for quick debugging
+- **Status Types**:
+  - `PASS`: Similarity score ≥ 0.8 compared to baseline
+  - `FAIL`: Similarity score < 0.8 or execution issues
+  - `RECORDED`: New baseline recorded (no existing baseline found)  
+  - `ERROR`: Scenario loading or execution failure
 
 ### Options
 
@@ -255,6 +309,9 @@ PYTHONPATH=src uv run python -m mcp_eval.cli batch --scenarios <scenarios_dir> [
 - `--baseline`: Path to baseline directory for comparison
 - `--output`: Output directory for results
 - `--mcp-config`: MCP servers configuration file (default: mcp_servers.json)
+- `--tag`: Filter scenarios by tag (can be used multiple times)
+- `--fail-fast`: Stop on first failure
+- `--verbose`: Enable verbose output for debugging
 
 ## Development
 

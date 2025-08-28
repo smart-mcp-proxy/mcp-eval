@@ -3,11 +3,15 @@
 import click
 import yaml
 import json
+import os
+import subprocess
+import time
 from pathlib import Path
 from typing import List, Optional
 from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.text import Text
 
 from .scenario_runner import FailureAwareScenarioRunner
 from .evaluator import TrajectoryEvaluator
@@ -347,6 +351,251 @@ def batch(scenarios: Path, output: Path, mcp_config: Path, parallel: bool):
     
     console.print(table)
     console.print(f"📊 [bold green]Batch results saved to:[/bold green] {output}")
+
+
+@cli.command()
+@click.option(
+    "--scenarios-dir",
+    type=click.Path(exists=True, path_type=Path),
+    default="scenarios",
+    help="Directory containing scenario YAML files"
+)
+@click.option(
+    "--tag", "-t",
+    multiple=True,
+    help="Filter scenarios by tag (can be used multiple times)"
+)
+@click.option(
+    "--scenario", "-s",
+    type=click.Path(exists=True, path_type=Path),
+    multiple=True,
+    help="Run specific scenario file(s)"
+)
+@click.option(
+    "--mcp-config",
+    type=click.Path(exists=True, path_type=Path),
+    default="mcp_servers.json",
+    help="MCP server configuration file"
+)
+@click.option(
+    "--verbose", "-v",
+    is_flag=True,
+    help="Enable verbose output"
+)
+@click.option(
+    "--fail-fast", "-x",
+    is_flag=True,
+    help="Stop on first failure"
+)
+def test(scenarios_dir: Path, tag: tuple, scenario: tuple, mcp_config: Path, verbose: bool, fail_fast: bool):
+    """Run MCP evaluation scenarios in pytest-style with compact output."""
+    
+    # Restart MCPProxy to ensure clean state
+    console.print("🔄 [yellow]Restarting MCPProxy for clean state...[/yellow]")
+    restart_mcpproxy()
+    
+    # Collect scenarios to run
+    scenarios_to_run = []
+    
+    if scenario:
+        # Run specific scenario files
+        scenarios_to_run = list(scenario)
+    else:
+        # Find all scenarios in directory and filter by tags
+        all_scenarios = list(scenarios_dir.glob("*.yaml")) + list(scenarios_dir.glob("*.yml"))
+        
+        for scenario_file in all_scenarios:
+            try:
+                with open(scenario_file) as f:
+                    scenario_data = yaml.safe_load(f)
+                
+                # Check if scenario is enabled
+                if not scenario_data.get("enabled", True):
+                    continue
+                
+                # Filter by tags if specified
+                if tag:
+                    scenario_tags = scenario_data.get("tags", [])
+                    if not any(t in scenario_tags for t in tag):
+                        continue
+                
+                scenarios_to_run.append(scenario_file)
+                
+            except Exception as e:
+                if verbose:
+                    console.print(f"❌ [red]Failed to load {scenario_file.name}: {e}[/red]")
+                continue
+    
+    if not scenarios_to_run:
+        console.print("[red]No scenarios found to run[/red]")
+        return
+    
+    console.print(f"\n🧪 [bold]Running {len(scenarios_to_run)} scenarios[/bold]")
+    if tag:
+        console.print(f"   [dim]Filtered by tags: {', '.join(tag)}[/dim]")
+    console.print()
+    
+    # Run scenarios with compact output
+    results = []
+    failed_count = 0
+    
+    for i, scenario_file in enumerate(scenarios_to_run, 1):
+        scenario_name = scenario_file.stem
+        
+        # Load scenario to get expected trajectory for comparison
+        try:
+            with open(scenario_file) as f:
+                scenario_data = yaml.safe_load(f)
+        except Exception as e:
+            console.print(f"{scenario_name:<30} [red]LOAD_ERROR[/red]  - Failed to load scenario")
+            failed_count += 1
+            if fail_fast:
+                break
+            continue
+        
+        # Check if baseline exists for comparison
+        baseline_dir = Path("baselines") / f"{scenario_name}_baseline" / f"{scenario_name}_baseline"
+        has_baseline = baseline_dir.exists() and (baseline_dir / "detailed_log.json").exists()
+        
+        if has_baseline:
+            # Run comparison mode
+            status, score = run_scenario_with_comparison(scenario_file, baseline_dir, mcp_config, verbose)
+        else:
+            # Run baseline recording mode
+            status, score = run_scenario_baseline(scenario_file, mcp_config, verbose)
+        
+        # Format status with colors
+        status_text = Text()
+        if status == "PASS":
+            status_text.append("PASS", style="green bold")
+        elif status == "FAIL":
+            status_text.append("FAIL", style="red bold")
+        elif status == "ERROR":
+            status_text.append("ERROR", style="red bold")
+        elif status == "RECORDED":
+            status_text.append("RECORDED", style="blue bold")
+        else:
+            status_text.append(status, style="yellow bold")
+        
+        # Display compact result
+        score_str = f"{score:.2f}" if score is not None else "N/A"
+        console.print(f"{scenario_name:<30} {status_text} {score_str:>6}")
+        
+        results.append({
+            "scenario": scenario_name,
+            "status": status,
+            "score": score
+        })
+        
+        if status in ["FAIL", "ERROR"]:
+            failed_count += 1
+            if fail_fast:
+                break
+    
+    # Print summary
+    console.print()
+    passed = len([r for r in results if r["status"] == "PASS"])
+    recorded = len([r for r in results if r["status"] == "RECORDED"])
+    failed = failed_count
+    
+    summary_text = Text()
+    if failed == 0:
+        summary_text.append("✅ ", style="green")
+    else:
+        summary_text.append("❌ ", style="red")
+    
+    summary_text.append(f"{passed} passed", style="green" if passed > 0 else "dim")
+    if recorded > 0:
+        summary_text.append(f", {recorded} recorded", style="blue")
+    if failed > 0:
+        summary_text.append(f", {failed} failed", style="red")
+    
+    console.print(summary_text)
+
+
+def restart_mcpproxy():
+    """Restart MCPProxy Docker container for clean state."""
+    try:
+        # Use existing restart script
+        script_path = Path(__file__).parent.parent.parent / "testing" / "restart-mcpproxy.sh"
+        if script_path.exists():
+            subprocess.run([str(script_path)], check=True, capture_output=True)
+        else:
+            # Fallback to basic docker commands
+            subprocess.run(["docker", "compose", "down"], cwd="testing", capture_output=True)
+            subprocess.run(["docker", "compose", "up", "-d"], cwd="testing", capture_output=True)
+        
+        # Wait a moment for startup
+        time.sleep(2)
+    except Exception:
+        # Non-critical if restart fails - scenarios might still work
+        pass
+
+
+def run_scenario_with_comparison(scenario_file: Path, baseline_dir: Path, mcp_config: Path, verbose: bool) -> tuple[str, Optional[float]]:
+    """Run scenario and compare against baseline."""
+    try:
+        import asyncio
+        
+        # Load baseline data
+        baseline_detailed = baseline_dir / "detailed_log.json"
+        with open(baseline_detailed) as f:
+            baseline_data = json.load(f)
+        
+        # Execute current scenario
+        async def execute_scenario():
+            runner = FailureAwareScenarioRunner(output_dir=Path("temp_comparison"), mcp_config=str(mcp_config))
+            success, execution_data = await runner.execute_scenario(scenario_file, mode="evaluation")
+            return success, execution_data
+        
+        success, execution_data = asyncio.run(execute_scenario())
+        
+        if not success:
+            return "FAIL", 0.0
+        
+        # Compare trajectories
+        evaluator = TrajectoryEvaluator()
+        comparison_result = evaluator.compare_executions(execution_data, baseline_data)
+        
+        score = comparison_result.overall_score
+        status = "PASS" if score >= 0.8 else "FAIL"
+        
+        return status, score
+        
+    except Exception as e:
+        if verbose:
+            console.print(f"   [red]Error: {e}[/red]")
+        return "ERROR", None
+
+
+def run_scenario_baseline(scenario_file: Path, mcp_config: Path, verbose: bool) -> tuple[str, Optional[float]]:
+    """Run scenario in baseline recording mode."""
+    try:
+        import asyncio
+        
+        scenario_name = scenario_file.stem
+        output_dir = Path("baselines") / f"{scenario_name}_baseline"
+        
+        async def record_scenario():
+            runner = FailureAwareScenarioRunner(output_dir=output_dir, mcp_config=str(mcp_config))
+            success, execution_data = await runner.execute_scenario(scenario_file, mode="baseline")
+            
+            if success:
+                runner.save_execution_results(execution_data, scenario_name, "baseline")
+            
+            return success, execution_data
+        
+        success, execution_data = asyncio.run(record_scenario())
+        
+        if success:
+            return "RECORDED", None
+        else:
+            return "ERROR", None
+            
+    except Exception as e:
+        if verbose:
+            console.print(f"   [red]Error: {e}[/red]")
+        return "ERROR", None
 
 
 if __name__ == "__main__":

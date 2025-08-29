@@ -332,9 +332,13 @@ class FailureAwareScenarioRunner:
         console.print(f"🎯 Intent: {user_intent}")
         console.print(f"📊 Expected tools: {len(expected_trajectory)}")
         
-        # Discover available tools before execution
-        console.print("🔍 [blue]Discovering available tools...[/blue]")
-        available_tools = await self._discover_tools()
+        # Skip tool discovery for now due to connection issues - it's only for metadata
+        available_tools = {
+            "discovery_method": "skipped",
+            "note": "Tool discovery disabled to avoid connection issues",
+            "discovered_at": datetime.now().isoformat(),
+            "tools": []
+        }
         
         # Execute with enhanced tracking
         execution_data = {

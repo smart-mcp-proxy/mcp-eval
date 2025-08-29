@@ -573,7 +573,7 @@ def _check_and_rebuild_mcpproxy():
         # Check if binary exists
         binary_path = mcpproxy_path / "mcpproxy"
         
-        # Get current git hash from source
+        # Get current git hash from source (8 characters for consistency)
         try:
             current_hash = subprocess.check_output(
                 ["git", "rev-parse", "HEAD"],
@@ -592,7 +592,9 @@ def _check_and_rebuild_mcpproxy():
             try:
                 with open(build_info_file) as f:
                     build_info = json.load(f)
-                    cached_hash = build_info.get("commit", "")
+                    cached_hash_raw = build_info.get("commit", "")
+                    # Normalize to 8 characters for consistent comparison
+                    cached_hash = cached_hash_raw[:8] if cached_hash_raw and cached_hash_raw != "unknown" else cached_hash_raw
             except (json.JSONDecodeError, IOError):
                 pass
         
@@ -605,7 +607,7 @@ def _check_and_rebuild_mcpproxy():
             rebuild_reason = "Binary not found"
         elif cached_hash != current_hash:
             needs_rebuild = True
-            rebuild_reason = f"Source updated ({cached_hash[:8] if cached_hash else 'unknown'} → {current_hash})"
+            rebuild_reason = f"Source updated ({cached_hash if cached_hash else 'unknown'} → {current_hash})"
         else:
             # Check if any Go source files are newer than binary
             go_files = list(mcpproxy_path.glob("**/*.go"))

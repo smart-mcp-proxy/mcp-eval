@@ -37,7 +37,7 @@ cd "$MCPPROXY_SOURCE"
 
 # Check Git status for changes
 if command -v git >/dev/null 2>&1 && [ -d ".git" ]; then
-    CURRENT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+    CURRENT_COMMIT=$(git rev-parse HEAD 2>/dev/null | cut -c1-8 || echo "unknown")
     DIRTY_STATUS=$(git diff --quiet 2>/dev/null && echo "clean" || echo "dirty")
     
     echo "📝 Git status:"

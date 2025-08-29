@@ -536,8 +536,11 @@ def test(scenarios_dir: Path, tag: tuple, scenario: tuple, mcp_config: Path, ver
 
 
 def restart_mcpproxy():
-    """Restart MCPProxy Docker container for clean state."""
+    """Restart MCPProxy Docker container for clean state with build check."""
     try:
+        # Check if mcpproxy binary needs to be rebuilt
+        _check_and_rebuild_mcpproxy()
+        
         # Use existing restart script
         script_path = Path(__file__).parent.parent.parent / "testing" / "restart-mcpproxy.sh"
         if script_path.exists():
@@ -552,6 +555,97 @@ def restart_mcpproxy():
     except Exception:
         # Non-critical if restart fails - scenarios might still work
         pass
+
+
+def _check_and_rebuild_mcpproxy():
+    """Check if mcpproxy source has been updated and rebuild if necessary."""
+    try:
+        import os
+        
+        # Get mcpproxy source path
+        mcpproxy_source = os.getenv("MCPPROXY_SOURCE_PATH", "../mcpproxy-go")
+        mcpproxy_path = Path(mcpproxy_source).expanduser().resolve()
+        
+        if not mcpproxy_path.exists():
+            console.print(f"[yellow]Warning: MCPProxy source not found at {mcpproxy_path}[/yellow]")
+            return
+            
+        # Check if binary exists
+        binary_path = mcpproxy_path / "mcpproxy"
+        
+        # Get current git hash from source
+        try:
+            current_hash = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"],
+                cwd=mcpproxy_path,
+                text=True
+            ).strip()[:8]
+        except subprocess.CalledProcessError:
+            console.print("[yellow]Warning: Could not get git hash from MCPProxy source[/yellow]")
+            return
+            
+        # Check if we have a cached build hash
+        build_info_file = mcpproxy_path / "build-info.json"
+        cached_hash = None
+        
+        if build_info_file.exists():
+            try:
+                with open(build_info_file) as f:
+                    build_info = json.load(f)
+                    cached_hash = build_info.get("commit", "")
+            except (json.JSONDecodeError, IOError):
+                pass
+        
+        # Determine if rebuild is needed
+        needs_rebuild = False
+        rebuild_reason = ""
+        
+        if not binary_path.exists():
+            needs_rebuild = True
+            rebuild_reason = "Binary not found"
+        elif cached_hash != current_hash:
+            needs_rebuild = True
+            rebuild_reason = f"Source updated ({cached_hash[:8] if cached_hash else 'unknown'} → {current_hash})"
+        else:
+            # Check if any Go source files are newer than binary
+            go_files = list(mcpproxy_path.glob("**/*.go"))
+            if go_files:
+                binary_mtime = binary_path.stat().st_mtime
+                newer_files = [f for f in go_files if f.stat().st_mtime > binary_mtime]
+                if newer_files:
+                    needs_rebuild = True
+                    rebuild_reason = f"Source files modified ({len(newer_files)} files newer than binary)"
+        
+        if needs_rebuild:
+            console.print(f"[yellow]🔨 MCPProxy rebuild needed: {rebuild_reason}[/yellow]")
+            
+            # Run the build script
+            build_script = Path(__file__).parent.parent.parent / "testing" / "build-mcpproxy.sh"
+            if build_script.exists():
+                console.print("[blue]🏗️  Building MCPProxy binary...[/blue]")
+                result = subprocess.run(
+                    ["bash", str(build_script)], 
+                    cwd=mcpproxy_path,
+                    env=dict(os.environ, **{
+                        "MCPPROXY_SOURCE": str(mcpproxy_path),
+                        "BUILD_FORCE": "false",  # Let the script decide
+                        "BUILD_CACHE": "true"
+                    }),
+                    capture_output=True,
+                    text=True
+                )
+                
+                if result.returncode == 0:
+                    console.print("[green]✅ MCPProxy binary built successfully[/green]")
+                else:
+                    console.print(f"[red]❌ MCPProxy build failed: {result.stderr}[/red]")
+            else:
+                console.print(f"[yellow]Warning: Build script not found at {build_script}[/yellow]")
+        else:
+            console.print("[green]✅ MCPProxy binary is up to date[/green]")
+            
+    except Exception as e:
+        console.print(f"[yellow]Warning: Could not check MCPProxy build status: {e}[/yellow]")
 
 
 def run_scenario_with_comparison(scenario_file: Path, baseline_dir: Path, mcp_config: Path, verbose: bool) -> tuple[str, Optional[float]]:
@@ -653,6 +747,14 @@ def run_scenario_baseline(scenario_file: Path, mcp_config: Path, verbose: bool) 
         success, execution_data = asyncio.run(record_scenario())
         
         if success:
+            # Generate HTML baseline report
+            from .html_reporter import HTMLReporter
+            html_reporter = HTMLReporter()
+            html_report_path = html_reporter.generate_baseline_report(execution_data, scenario_name)
+            
+            if verbose:
+                console.print(f"   [dim]📊 HTML baseline report: {html_report_path}[/dim]")
+                
             return "RECORDED", None
         else:
             return "ERROR", None

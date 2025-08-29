@@ -291,6 +291,14 @@ class HTMLReporter:
         current_status = self._evaluate_actual_status(current_data)
         baseline_status = self._evaluate_actual_status(baseline_data)
         
+        # Extract git info from both current and baseline
+        current_git_info = current_data.get("mcpproxy_git_info", {})
+        baseline_git_info = baseline_data.get("mcpproxy_git_info", {})
+        
+        # Get user intents
+        current_user_intent = current_data.get("user_intent", "")
+        baseline_user_intent = baseline_data.get("user_intent", "")
+        
         # Generate side-by-side conversation HTML
         comparison_html = self._generate_comparison_conversation_html(
             current_data, baseline_data, comparison_result
@@ -318,6 +326,21 @@ class HTMLReporter:
             <h1>⚖️ MCP Comparison Report</h1>
             <div class="scenario-info">
                 <h2>{html.escape(scenario)}</h2>
+                <p class="user-intent"><strong>User Intent:</strong> {html.escape(current_user_intent)}</p>
+                <div class="git-info-comparison">
+                    <div class="current-version">
+                        <strong>Current MCPProxy:</strong> 
+                        <code title="Full hash: {current_git_info.get('git_hash', 'unknown')}">{current_git_info.get('git_hash_short', 'unknown')}</code>
+                        ({html.escape(current_git_info.get('commit_message', 'unknown'))[:40]}{'...' if len(current_git_info.get('commit_message', '')) > 40 else ''})
+                        <span class="commit-date">{current_git_info.get('commit_date', 'unknown')}</span>
+                    </div>
+                    <div class="baseline-version">
+                        <strong>Baseline MCPProxy:</strong> 
+                        <code title="Full hash: {baseline_git_info.get('git_hash', 'unknown')}">{baseline_git_info.get('git_hash_short', 'unknown')}</code>
+                        ({html.escape(baseline_git_info.get('commit_message', 'unknown'))[:40]}{'...' if len(baseline_git_info.get('commit_message', '')) > 40 else ''})
+                        <span class="commit-date">{baseline_git_info.get('commit_date', 'unknown')}</span>
+                    </div>
+                </div>
                 <div class="comparison-badges">
                     <span class="status-badge status-{current_status.lower()}">Current: {current_status}</span>
                     <span class="status-badge status-{baseline_status.lower()}">Baseline: {baseline_status}</span>
@@ -1443,6 +1466,47 @@ body {
         padding: 10px;
     }
 }
+
+/* Git info comparison styles */
+.git-info-comparison {
+    background: #f8f9fa;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 12px;
+    margin: 8px 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.current-version, .baseline-version {
+    font-size: 0.85em;
+    color: #2d3748;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.current-version {
+    border-right: 1px solid #cbd5e0;
+    padding-right: 16px;
+}
+
+.current-version code, .baseline-version code {
+    background: #e6fffa;
+    padding: 2px 4px;
+    border-radius: 2px;
+    font-weight: 600;
+    color: #1a202c;
+    cursor: help;
+}
+
+.current-version .commit-date, .baseline-version .commit-date {
+    color: #68d391;
+    font-size: 0.8em;
+    margin-left: 8px;
+    display: block;
+    margin-top: 4px;
+}
+
 </style>
         """
         

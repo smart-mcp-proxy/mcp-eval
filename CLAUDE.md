@@ -80,20 +80,42 @@ Expected Trajectory ← Trajectory Comparison ← Recorded Trajectory
 
 **Mode 1: Record Mode**
 ```bash
+mcp-eval record --scenario scenarios/security/add_server_with_security_check.yaml
+# or
 mcp-eval record --scenario scenarios/search_tools.yaml --output results/search_tools_run1/
 ```
 - Executes scenario with real MCP interaction
 - Records full detailed logs (JSON format)
 - Generates human-readable dialog trajectory
 - Saves baseline for comparison
+- Supports subdirectory structure matching scenario organization
 
 **Mode 2: Compare Mode**
 ```bash
-mcp-eval compare --scenario scenarios/search_tools.yaml --baseline results/search_tools_baseline/ --output results/comparison_report.json
+mcp-eval compare --scenario scenarios/security/add_server.yaml --baseline baselines/security/add_server_baseline/
+# or with custom output
+mcp-eval compare --scenario scenarios/search_tools.yaml --baseline baselines/search_tools_baseline/ --output results/comparison_report.json
 ```
 - Executes scenario and compares with recorded baseline
 - Calculates trajectory similarity metrics
-- Generates evaluation report with scores
+- Generates evaluation report with scores (JSON format with .json extension)
+- Creates HTML comparison reports with visual similarity analysis
+- Preserves subdirectory structure in output directories
+
+**Test Mode (pytest-style)**
+```bash
+mcp-eval test --scenarios-dir scenarios/
+# Test specific scenarios
+mcp-eval test --scenario scenarios/security/add_server.yaml --scenario scenarios/tool_management/list_servers.yaml
+# Filter by tags
+mcp-eval test --tag security --tag server_management
+```
+- Runs scenarios in pytest-style with compact output
+- Shows similarity scores in console output
+- Generates HTML reports for each test run
+- Supports recursive scenario discovery in subdirectories
+- Records baselines for scenarios without existing baselines
+- Compares against baselines and shows PASS/FAIL with scores
 
 **Batch Mode**
 ```bash
@@ -102,6 +124,7 @@ mcp-eval batch --scenarios scenarios/ --output reports/
 - Runs multiple scenarios in sequence
 - Generates aggregate reports
 - Supports parallel execution
+- Recursively finds scenarios in subdirectories
 
 ### Scenario Format
 
@@ -186,7 +209,7 @@ Advanced similarity-based trajectory evaluation with multi-level scoring:
 
 4. **Failure-Aware Scoring**: Intelligent handling of blocked executions, cascading failures, and critical operation impacts
 
-5. **Enhanced Reporting**: Visual similarity badges, tool filtering controls, and comprehensive comparison metrics
+5. **Enhanced Reporting**: Visual similarity badges, tool filtering controls, comprehensive comparison metrics, and console score display in test mode
 
 ### Dependencies
 
@@ -207,20 +230,35 @@ claude-agent-project/
 ├── src/
 │   ├── mcp_eval/
 │   │   ├── __init__.py
-│   │   ├── cli.py              # Click CLI interface
-│   │   ├── scenario_engine.py  # Scenario execution
-│   │   ├── recorder.py         # Log recording
+│   │   ├── cli.py              # Click CLI interface with test command
+│   │   ├── scenario_runner.py  # Enhanced scenario execution engine
 │   │   ├── evaluator.py        # Trajectory comparison with similarity metrics
 │   │   ├── similarity.py       # Similarity calculation algorithms
 │   │   ├── html_reporter.py    # Enhanced HTML report generation
 │   │   └── reporter.py         # Report generation
-├── scenarios/
+├── scenarios/                  # Supports subdirectories
+│   ├── security/
+│   │   ├── add_server_with_security_check.yaml
+│   │   └── inspect_quarantined_server.yaml
+│   ├── tool_management/
+│   │   ├── add_simple_server.yaml
+│   │   ├── list_all_servers.yaml
+│   │   └── remove_server.yaml
 │   ├── search_tools.yaml
-│   ├── add_server.yaml
 │   └── update_server.yaml
-├── baselines/                  # Reference trajectories
-├── results/                    # Evaluation outputs
-├── trajectory_evaluator.py     # Google ADK reference
+├── baselines/                  # Reference trajectories with matching structure
+│   ├── security/
+│   │   ├── add_server_with_security_check_baseline/
+│   │   │   ├── detailed_log.json
+│   │   │   └── trajectory.txt
+│   │   └── inspect_quarantined_server_baseline/
+│   └── search_tools_baseline/
+├── comparison_results/         # JSON reports with matching structure
+│   ├── security/
+│   │   ├── add_server_comparison.json
+│   │   └── inspect_quarantined_comparison.json
+│   └── search_tools_comparison.json
+├── reports/                    # HTML reports
 └── main.py                     # Agent implementation
 ```
 

@@ -21,6 +21,23 @@ from .html_reporter import HTMLReporter
 console = Console()
 
 
+def get_scenario_relative_path(scenario_file: Path) -> Path:
+    """Get the relative path of a scenario file from the scenarios directory."""
+    try:
+        # Try to find the scenarios directory in the path
+        parts = scenario_file.parts
+        if 'scenarios' in parts:
+            scenarios_idx = parts.index('scenarios')
+            # Get the path from scenarios directory to the parent directory of the file
+            rel_parts = parts[scenarios_idx + 1:-1]  # Exclude 'scenarios' and filename
+            return Path(*rel_parts) if rel_parts else Path('.')
+        else:
+            # If no scenarios directory found, just return current directory
+            return Path('.')
+    except (ValueError, IndexError):
+        return Path('.')
+
+
 @click.group()
 @click.version_option(version="0.1.0")
 def cli():
@@ -59,7 +76,9 @@ def record(scenario: Path, output: Path, mcp_config: Path, verbose: bool):
     # Generate default output path if not provided
     if output is None:
         scenario_name = scenario.stem
-        output = Path("baselines") / f"{scenario_name}_baseline"
+        # Calculate relative path from scenarios dir to preserve subdirectory structure
+        scenario_rel_path = get_scenario_relative_path(scenario)
+        output = Path("baselines") / scenario_rel_path / f"{scenario_name}_baseline"
         console.print(f"📂 Using default output: {output}")
     
     # Create output directory
@@ -143,7 +162,9 @@ def compare(scenario: Path, baseline: Path, output: Path, mcp_config: Path, verb
     # Generate default output path if not provided
     if output is None:
         scenario_name = scenario.stem
-        output = Path("comparison_results") / f"{scenario_name}_comparison"
+        # Calculate relative path from scenarios dir to preserve subdirectory structure
+        scenario_rel_path = get_scenario_relative_path(scenario)
+        output = Path("comparison_results") / scenario_rel_path / f"{scenario_name}_comparison.json"
         console.print(f"📂 Using default output: {output}")
     console.print(f"🔍 [bold blue]Comparing scenario:[/bold blue] {scenario.name}")
     
@@ -358,7 +379,7 @@ def batch(scenarios: Path, output: Path, mcp_config: Path, parallel: bool):
     "--scenarios-dir",
     type=click.Path(exists=True, path_type=Path),
     default="scenarios",
-    help="Directory containing scenario YAML files"
+    help="Directory containing scenario YAML files (recursively searched)"
 )
 @click.option(
     "--tag", "-t",
@@ -401,8 +422,8 @@ def test(scenarios_dir: Path, tag: tuple, scenario: tuple, mcp_config: Path, ver
         # Run specific scenario files
         scenarios_to_run = list(scenario)
     else:
-        # Find all scenarios in directory and filter by tags
-        all_scenarios = list(scenarios_dir.glob("*.yaml")) + list(scenarios_dir.glob("*.yml"))
+        # Find all scenarios in directory recursively and filter by tags
+        all_scenarios = list(scenarios_dir.rglob("*.yaml")) + list(scenarios_dir.rglob("*.yml"))
         
         for scenario_file in all_scenarios:
             try:
@@ -454,7 +475,8 @@ def test(scenarios_dir: Path, tag: tuple, scenario: tuple, mcp_config: Path, ver
             continue
         
         # Check if baseline exists for comparison
-        baseline_dir = Path("baselines") / f"{scenario_name}_baseline" / f"{scenario_name}_baseline"
+        scenario_rel_path = get_scenario_relative_path(scenario_file)
+        baseline_dir = Path("baselines") / scenario_rel_path / f"{scenario_name}_baseline"
         has_baseline = baseline_dir.exists() and (baseline_dir / "detailed_log.json").exists()
         
         if has_baseline:
@@ -560,6 +582,48 @@ def run_scenario_with_comparison(scenario_file: Path, baseline_dir: Path, mcp_co
         score = comparison_result.overall_score
         status = "PASS" if score >= 0.8 else "FAIL"
         
+        # Generate HTML comparison report for test command
+        scenario_name = scenario_file.stem
+        scenario_rel_path = get_scenario_relative_path(scenario_file)
+        comparison_results_dir = Path("comparison_results") / scenario_rel_path
+        comparison_results_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Generate JSON comparison report
+        from .reporter import ReportGenerator, ScenarioResult
+        reporter = ReportGenerator()
+        
+        # Load scenario data for report
+        with open(scenario_file) as f:
+            scenario_data = yaml.safe_load(f)
+        
+        current_result = ScenarioResult(
+            scenario_name=execution_data.get("scenario", "unknown"),
+            success=success,
+            execution_time=0.0,
+            detailed_log=execution_data,
+            dialog_trajectory="",
+            tool_calls=execution_data.get("tool_calls_summary", []),
+            error=None if success else "Execution failed"
+        )
+        
+        report = reporter.generate_comparison_report(
+            scenario_data, current_result, baseline_data, comparison_result
+        )
+        
+        # Save JSON report with .json extension
+        json_report_path = comparison_results_dir / f"{scenario_name}_comparison.json"
+        with open(json_report_path, 'w') as f:
+            json.dump(report, f, indent=2, default=str)
+        
+        # Generate HTML comparison report
+        html_reporter = HTMLReporter()
+        html_report_path = html_reporter.generate_comparison_report(
+            execution_data, baseline_data, report, scenario_name
+        )
+        
+        if verbose:
+            console.print(f"   [dim]📊 HTML report: {html_report_path}[/dim]")
+        
         return status, score
         
     except Exception as e:
@@ -574,7 +638,8 @@ def run_scenario_baseline(scenario_file: Path, mcp_config: Path, verbose: bool) 
         import asyncio
         
         scenario_name = scenario_file.stem
-        output_dir = Path("baselines") / f"{scenario_name}_baseline"
+        scenario_rel_path = get_scenario_relative_path(scenario_file)
+        output_dir = Path("baselines") / scenario_rel_path / f"{scenario_name}_baseline"
         
         async def record_scenario():
             runner = FailureAwareScenarioRunner(output_dir=output_dir, mcp_config=str(mcp_config))

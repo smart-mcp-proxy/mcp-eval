@@ -666,10 +666,9 @@ class FailureAwareScenarioRunner:
     
     def save_execution_results(self, execution_data: Dict[str, Any], scenario_name: str, mode: str):
         """Save execution results to output directory."""
-        if mode == "baseline":
-            output_dir = self.output_dir / f"{scenario_name}_baseline"
-        else:
-            output_dir = self.output_dir / scenario_name
+        # Use the output_dir directly without adding extra subdirectories
+        # The CLI already creates the appropriate directory structure
+        output_dir = self.output_dir
         
         output_dir.mkdir(parents=True, exist_ok=True)
         

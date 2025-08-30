@@ -308,8 +308,18 @@ class FailureAwareScenarioRunner:
         if config_file:
             config_path = Path(config_file)
             if not config_path.is_absolute():
-                # Resolve relative path from scenario file directory
-                config_path = scenario_file.parent.parent / config_file
+                # Resolve relative path from project root (where configs/ directory is located)
+                # Find project root by going up from scenario file until we find configs/ directory
+                project_root = scenario_file.parent
+                while project_root != project_root.parent:  # Stop at filesystem root
+                    potential_config = project_root / config_file
+                    if potential_config.exists():
+                        config_path = potential_config
+                        break
+                    project_root = project_root.parent
+                else:
+                    # If not found, try from current working directory as fallback
+                    config_path = Path.cwd() / config_file
             
             if config_path.exists():
                 console.print(f"🔧 [cyan]Using scenario-specific config: {config_path}[/cyan]")

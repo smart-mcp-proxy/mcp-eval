@@ -1,0 +1,36 @@
+enabled: true
+name: "Add DeFiLlama MCP Server"
+description: "Add a new MCP server using uvx to install defillama-mcp-server from GitHub"
+config_file: "configs/minimal_config.json"
+user_intent: "Add upstream server stdio - command:'uvx', args: 'git+https://github.com/smart-mcp-proxy/defillama-mcp-server'. Wait until server will become connected, check connection status using upstream servers list. Get tail of 50 lines from server log"
+
+expected_trajectory:
+  - action: "add_server"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "add"
+      name: "defillama-mcp"
+      protocol: "stdio"
+      command: "uvx"
+      args: ["git+https://github.com/smart-mcp-proxy/defillama-mcp-server"]
+  - action: "check_connection"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "list"
+  - action: "get_logs"
+    tool: "mcp__mcpproxy__server_logs"
+    args:
+      name: "defillama-mcp"
+      lines: 50
+
+success_criteria:
+  - "mcp__mcpproxy__upstream_servers with add operation"
+  - "server shows connected status"
+  - "mcp__mcpproxy__server_logs returns log entries"
+  - "defillama-mcp server added successfully"
+
+tags:
+  - "server_management"
+  - "uvx"
+  - "github"
+  - "defillama"

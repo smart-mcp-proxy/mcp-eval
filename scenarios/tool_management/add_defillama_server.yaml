@@ -1,8 +1,8 @@
 enabled: true
 name: "Add DeFiLlama MCP Server"
 description: "Add a new MCP server using uvx to install defillama-mcp-server from GitHub"
-config_file: "configs/minimal_config.json"
-user_intent: "Add upstream server stdio - command:'uvx', args: 'git+https://github.com/smart-mcp-proxy/defillama-mcp-server'. Wait until server will become connected, check connection status using upstream servers list. Get tail of 50 lines from server log"
+config_file: "configs/no_quarantine_config.json"
+user_intent: "Add upstream server stdio with name 'defillama-mcp' using command:'uvx' and args: 'git+https://github.com/smart-mcp-proxy/defillama-mcp-server'. After adding, monitor the connection status by checking the upstream servers list multiple times to see if the server becomes connected. Check at least 3-4 times with some explanation of what you're checking for. If the server connects, get the tail of 50 lines from the server log to verify it's working. If it doesn't connect after multiple checks, explain what might be preventing the connection and what the logs show."
 
 expected_trajectory:
   - action: "add_server"
@@ -13,21 +13,35 @@ expected_trajectory:
       protocol: "stdio"
       command: "uvx"
       args: ["git+https://github.com/smart-mcp-proxy/defillama-mcp-server"]
-  - action: "check_connection"
+  - action: "check_connection_status"
     tool: "mcp__mcpproxy__upstream_servers"
     args:
       operation: "list"
-  - action: "get_logs"
+    notes: "Check if defillama-mcp server appears in list and its connection status"
+  - action: "monitor_connection_retry"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "list"
+    notes: "If server not connected, wait and check again (may repeat multiple times)"
+  - action: "verify_connection_final"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "list"
+    notes: "Final check to confirm server is connected before getting logs"
+  - action: "get_server_logs"
     tool: "mcp__mcpproxy__server_logs"
     args:
       name: "defillama-mcp"
       lines: 50
+    notes: "Get logs only after confirming server is connected"
 
 success_criteria:
-  - "mcp__mcpproxy__upstream_servers with add operation"
-  - "server shows connected status"
-  - "mcp__mcpproxy__server_logs returns log entries"
-  - "defillama-mcp server added successfully"
+  - "mcp__mcpproxy__upstream_servers with add operation succeeds"
+  - "Multiple checks of upstream_servers list to monitor connection status"
+  - "Server eventually shows connected=true and quarantined=false"
+  - "mcp__mcpproxy__server_logs returns actual log entries (not empty)"
+  - "Agent demonstrates patience waiting for connection before checking logs"
+  - "If server fails to connect, agent explains potential issues"
 
 tags:
   - "server_management"

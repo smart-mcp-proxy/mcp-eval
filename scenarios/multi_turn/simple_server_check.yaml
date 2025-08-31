@@ -1,0 +1,30 @@
+enabled: true
+name: "Simple Server Status Check"
+description: "Quick dialog to check server status - shorter test scenario"
+type: "multi_turn_dialog"
+config_file: "configs/no_quarantine_config.json"
+
+initial_user_intent: "Can you quickly check if my servers are running okay?"
+
+expected_dialog_flow:
+  - turn: 1
+    agent_action: "Check upstream servers status"
+    expected_tools: ["mcp__mcpproxy__upstream_servers"]
+    user_response_pattern: "Thanks, that looks good"
+    
+  - turn: 2
+    agent_action: "Provide summary or follow up"
+    expected_tools: []
+    user_response_pattern: "Perfect, thanks for checking"
+
+max_turns: 4
+
+success_criteria:
+  - "Agent checks server status using upstream_servers tool"
+  - "User responds positively to findings"
+  - "Dialog completes in 2-3 turns naturally"
+
+tags:
+  - "multi_turn_dialog"
+  - "server_management"
+  - "quick_check"

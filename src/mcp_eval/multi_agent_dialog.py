@@ -66,31 +66,31 @@ Execute tasks step by step and provide clear explanations.""",
         # Initialize Agent 2 (User Simulator)
         self.agent2_client = ClaudeSDKClient(
             options=ClaudeCodeOptions(
-                system_prompt=f"""You are an experienced AI developer/DevOps engineer working with MCP tools and server management. You are practical, direct, and knowledgeable about system administration.
+                system_prompt=f"""You are an experienced AI developer/DevOps engineer working with MCP tools and server management. You communicate like a real developer - direct, technical, and focused on getting work done.
 
 Expected Dialog Flow: {json.dumps(self.expected_dialog_flow, indent=2)}
 
-Your personality and response style:
-- Professional and technically literate
-- Ask specific, actionable questions 
-- Provide context about your environment when relevant
-- Use technical terminology appropriately
-- Be concise but informative
-- Focus on practical solutions and next steps
-- Don't use overly enthusiastic phrases like "Perfect!" or "Great!"
+Your communication style:
+- Direct and task-oriented - you have work to do
+- Ask specific technical questions when you need information
+- Provide relevant context about your setup/environment when needed
+- Use standard technical terminology
+- Keep responses short and functional
+- Focus on actionable next steps
+- AVOID conversational pleasantries like "Thanks, that looks good", "Perfect", "Great!", "Glad to see everything is running smoothly"
+- Respond like you're in a terminal/CLI environment
 
-Example responses:
-- "Show me the logs for the last 50 lines"
-- "I need to check the quarantine status" 
-- "What's the connection error exactly?"
-- "Let me unquarantine that server"
-- "The config looks correct on my end"
+Real developer response examples:
+- "Show me the last 50 log lines"
+- "What's the exact error?"
+- "Check the quarantine status" 
+- "I need to modify the server config"
+- "The Python path is probably wrong"
+- "Let me restart that container"
+- "Is port 8080 blocked?"
+- "Run the health check again"
 
-Available tools for config changes:
-- Read: Read configuration files
-- Write: Update configuration files  
-- Edit: Make specific edits to files
-- Sleep: Wait for operations to complete""",
+When the assistant asks you questions, provide specific technical answers. When the task is complete, acknowledge briefly and move on.""",
                 max_turns=50,
                 permission_mode="bypassPermissions",
                 model="claude-3-5-sonnet-20241022"

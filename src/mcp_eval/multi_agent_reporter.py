@@ -3,7 +3,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Tuple
 
 
 class MultiAgentHTMLReporter:
@@ -80,6 +80,50 @@ class MultiAgentHTMLReporter:
         
         return str(report_path)
     
+    def _extract_tool_calls_with_details(self, conversation_log: List[Dict]) -> List[Dict]:
+        """Extract MCP tool calls with full details including results."""
+        tool_calls = []
+        
+        for turn in conversation_log:
+            if turn['speaker'] == 'Agent':  # Only agent makes MCP tool calls
+                turn_tool_calls = turn.get('tool_calls', [])
+                for tool_call in turn_tool_calls:
+                    tool_name = tool_call.get('tool_name', '')
+                    if tool_name.startswith('mcp__'):  # Only MCP tools
+                        tool_calls.append({
+                            'turn': turn['turn'],
+                            'tool_name': tool_name,
+                            'tool_input': tool_call.get('tool_input', {}),
+                            'tool_result': tool_call.get('result', 'No result'),
+                            'is_error': tool_call.get('is_error', False),
+                            'timestamp': tool_call.get('timestamp', '')
+                        })
+        
+        return tool_calls
+    
+    def _calculate_tool_call_similarity(self, current_call: Dict, baseline_call: Dict) -> Dict[str, Any]:
+        """Calculate detailed similarity between two tool calls."""
+        from .similarity import calculate_args_similarity
+        
+        # Tool name similarity (exact match)
+        name_similarity = 1.0 if current_call['tool_name'] == baseline_call['tool_name'] else 0.0
+        
+        # Arguments similarity
+        args_similarity = calculate_args_similarity(
+            current_call['tool_input'], 
+            baseline_call['tool_input']
+        )
+        
+        # Overall similarity (weighted: name 40%, args 60%)
+        overall_similarity = (name_similarity * 0.4) + (args_similarity * 0.6)
+        
+        return {
+            'overall_similarity': overall_similarity,
+            'name_similarity': name_similarity,
+            'args_similarity': args_similarity,
+            'name_match': current_call['tool_name'] == baseline_call['tool_name']
+        }
+
     def _generate_comparison_html(self, current_conversation: List[Dict], baseline_conversation: List[Dict], 
                                 comparison_result: Dict[str, Any], scenario_data: Dict) -> str:
         """Generate HTML content for comparison report."""
@@ -217,7 +261,131 @@ class MultiAgentHTMLReporter:
             padding: 15px;
             border-radius: 8px;
         }}
+        .tool-calls-section {{
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }}
+        .tool-calls-grid {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }}
+        .tool-calls-column {{
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+        }}
+        .tool-calls-header {{
+            background: #f8f9fa;
+            padding: 15px;
+            font-weight: bold;
+            border-bottom: 1px solid #dee2e6;
+        }}
+        .tool-calls-content {{
+            padding: 15px;
+            max-height: 500px;
+            overflow-y: auto;
+        }}
+        .tool-call-item {{
+            margin-bottom: 15px;
+            border: 1px solid #e3f2fd;
+            border-radius: 6px;
+            background: #fafafa;
+        }}
+        .tool-call-header {{
+            background: #e3f2fd;
+            padding: 10px 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9em;
+        }}
+        .tool-call-header:hover {{
+            background: #bbdefb;
+        }}
+        .tool-call-name {{
+            font-weight: bold;
+            color: #1976d2;
+        }}
+        .tool-call-details {{
+            padding: 15px;
+            display: none;
+            border-top: 1px solid #bbdefb;
+        }}
+        .tool-call-details.expanded {{
+            display: block;
+        }}
+        .tool-section {{
+            margin-bottom: 15px;
+        }}
+        .tool-section-title {{
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+        }}
+        .tool-json-content {{
+            background: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.85em;
+            line-height: 1.4;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }}
+        .similarity-metrics {{
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }}
+        .similarity-score {{
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 10px;
+        }}
+        .score-high {{ background: #d4edda; color: #155724; }}
+        .score-medium {{ background: #fff3cd; color: #856404; }}
+        .score-low {{ background: #f8d7da; color: #721c24; }}
+        .alignment-indicator {{
+            text-align: center;
+            padding: 5px;
+            background: #e9ecef;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 0.8em;
+            color: #6c757d;
+        }}
     </style>
+    <script>
+        function toggleToolCall(toolId) {{
+            const content = document.getElementById('tool-details-' + toolId);
+            const toggle = document.getElementById('tool-toggle-' + toolId);
+            
+            if (content.classList.contains('expanded')) {{
+                content.classList.remove('expanded');
+                toggle.textContent = '▶ Expand';
+            }} else {{
+                content.classList.add('expanded');
+                toggle.textContent = '▼ Collapse';
+            }}
+        }}
+        
+        function getScoreClass(score) {{
+            if (score >= 0.8) return 'score-high';
+            if (score >= 0.6) return 'score-medium';
+            return 'score-low';
+        }}
+    </script>
 </head>
 <body>
     <div class="comparison-container">
@@ -269,7 +437,40 @@ class MultiAgentHTMLReporter:
                             <span>{'🤖' if speaker == 'agent' else '👤'} {turn['speaker']} (Turn {turn['turn']})</span>
                             <span>{tool_count} tools</span>
                         </div>
-                        <div class="message">{turn.get('message', 'No message')[:200]}{'...' if len(turn.get('message', '')) > 200 else ''}</div>
+                        <div class="message">{turn.get('message', 'No message')[:200]}{'...' if len(turn.get('message', '')) > 200 else ''}</div>"""
+            
+            # Add tool call details for agent turns
+            if speaker == 'agent' and tool_count > 0:
+                for tool_call in turn.get('tool_calls', []):
+                    tool_name = tool_call.get('tool_name', 'Unknown')
+                    tool_input = tool_call.get('tool_input', {})
+                    tool_result = tool_call.get('result', [])
+                    
+                    # Format tool input
+                    input_str = str(tool_input)[:100] + ('...' if len(str(tool_input)) > 100 else '')
+                    
+                    # Format tool output
+                    if tool_result and isinstance(tool_result, list) and len(tool_result) > 0:
+                        first_result = tool_result[0]
+                        if isinstance(first_result, dict) and 'text' in first_result:
+                            output_str = first_result['text'][:100] + ('...' if len(first_result['text']) > 100 else '')
+                        else:
+                            output_str = str(first_result)[:100] + ('...' if len(str(first_result)) > 100 else '')
+                    else:
+                        output_str = 'No output'
+                    
+                    html += f"""
+                        <div class="tool-call-summary" style="margin: 10px 0; padding: 8px; background: #e8f5e8; border-left: 3px solid #28a745; border-radius: 4px;">
+                            <div style="font-weight: bold; color: #155724;">🔧 {tool_name}</div>
+                            <div style="font-size: 0.85em; color: #6c757d; margin: 4px 0;">
+                                <strong>Args:</strong> {input_str}
+                            </div>
+                            <div style="font-size: 0.85em; color: #6c757d;">
+                                <strong>Output:</strong> {output_str}
+                            </div>
+                        </div>"""
+            
+            html += """
                     </div>"""
 
         html += """
@@ -295,7 +496,40 @@ class MultiAgentHTMLReporter:
                             <span>{'🤖' if speaker == 'agent' else '👤'} {turn['speaker']} (Turn {turn['turn']})</span>
                             <span>{tool_count} tools</span>
                         </div>
-                        <div class="message">{turn.get('message', 'No message')[:200]}{'...' if len(turn.get('message', '')) > 200 else ''}</div>
+                        <div class="message">{turn.get('message', 'No message')[:200]}{'...' if len(turn.get('message', '')) > 200 else ''}</div>"""
+            
+            # Add tool call details for agent turns
+            if speaker == 'agent' and tool_count > 0:
+                for tool_call in turn.get('tool_calls', []):
+                    tool_name = tool_call.get('tool_name', 'Unknown')
+                    tool_input = tool_call.get('tool_input', {})
+                    tool_result = tool_call.get('result', [])
+                    
+                    # Format tool input
+                    input_str = str(tool_input)[:100] + ('...' if len(str(tool_input)) > 100 else '')
+                    
+                    # Format tool output
+                    if tool_result and isinstance(tool_result, list) and len(tool_result) > 0:
+                        first_result = tool_result[0]
+                        if isinstance(first_result, dict) and 'text' in first_result:
+                            output_str = first_result['text'][:100] + ('...' if len(first_result['text']) > 100 else '')
+                        else:
+                            output_str = str(first_result)[:100] + ('...' if len(str(first_result)) > 100 else '')
+                    else:
+                        output_str = 'No output'
+                    
+                    html += f"""
+                        <div class="tool-call-summary" style="margin: 10px 0; padding: 8px; background: #e8f5e8; border-left: 3px solid #28a745; border-radius: 4px;">
+                            <div style="font-weight: bold; color: #155724;">🔧 {tool_name}</div>
+                            <div style="font-size: 0.85em; color: #6c757d; margin: 4px 0;">
+                                <strong>Args:</strong> {input_str}
+                            </div>
+                            <div style="font-size: 0.85em; color: #6c757d;">
+                                <strong>Output:</strong> {output_str}
+                            </div>
+                        </div>"""
+            
+            html += """
                     </div>"""
 
         # Add tool usage comparison
@@ -306,8 +540,18 @@ class MultiAgentHTMLReporter:
             </div>
         </div>
         
+        <div class="tool-calls-section">
+            <h3>🔧 Detailed Tool Calls Comparison</h3>
+            <div class="similarity-metrics">
+                <strong>Tool Trajectory Similarity Breakdown:</strong><br>
+                Overall Tool Similarity: <span class="similarity-score {self._get_score_class(comparison_result.get('trajectory_similarity', 0.0))}">{comparison_result.get('trajectory_similarity', 0.0):.3f}</span>
+            </div>
+            
+            {self._generate_tool_calls_comparison(current_conversation, baseline_conversation, comparison_result)}
+        </div>
+        
         <div class="analysis-section">
-            <h3>🔧 Tool Usage Analysis</h3>
+            <h3>📊 Tool Usage Summary</h3>
             <div class="tool-comparison">
                 <div class="tool-stats">
                     <h4>Current Dialog</h4>
@@ -659,3 +903,138 @@ class MultiAgentHTMLReporter:
 </html>"""
         
         return html
+    
+    def _get_score_class(self, score: float) -> str:
+        """Get CSS class for similarity score."""
+        if score >= 0.8:
+            return 'score-high'
+        elif score >= 0.6:
+            return 'score-medium'
+        else:
+            return 'score-low'
+    
+    def _generate_tool_calls_comparison(self, current_conversation: List[Dict], baseline_conversation: List[Dict], comparison_result: Dict) -> str:
+        """Generate HTML for detailed tool calls comparison."""
+        # Extract tool calls with full details
+        current_tools = self._extract_tool_calls_with_details(current_conversation)
+        baseline_tools = self._extract_tool_calls_with_details(baseline_conversation)
+        
+        # Align tool calls for comparison
+        aligned_calls = self._align_tool_calls(current_tools, baseline_tools)
+        
+        html = """
+            <div class="tool-calls-grid">
+                <div class="tool-calls-column">
+                    <div class="tool-calls-header">Current Tool Calls</div>
+                    <div class="tool-calls-content">
+        """
+        
+        for i, (current_call, baseline_call, similarity) in enumerate(aligned_calls):
+            if current_call:
+                html += self._generate_tool_call_html(current_call, f"current-{i}", similarity)
+            else:
+                html += f'<div class="alignment-indicator">⚪ No corresponding call</div>'
+        
+        html += """
+                    </div>
+                </div>
+                <div class="tool-calls-column">
+                    <div class="tool-calls-header">Baseline Tool Calls</div>
+                    <div class="tool-calls-content">
+        """
+        
+        for i, (current_call, baseline_call, similarity) in enumerate(aligned_calls):
+            if baseline_call:
+                html += self._generate_tool_call_html(baseline_call, f"baseline-{i}", similarity)
+            else:
+                html += f'<div class="alignment-indicator">⚪ No corresponding call</div>'
+        
+        html += """
+                    </div>
+                </div>
+            </div>
+        """
+        
+        return html
+    
+    def _align_tool_calls(self, current_tools: List[Dict], baseline_tools: List[Dict]) -> List[Tuple]:
+        """Align tool calls for side-by-side comparison."""
+        aligned = []
+        max_len = max(len(current_tools), len(baseline_tools))
+        
+        for i in range(max_len):
+            current_call = current_tools[i] if i < len(current_tools) else None
+            baseline_call = baseline_tools[i] if i < len(baseline_tools) else None
+            
+            # Calculate similarity if both calls exist
+            similarity = None
+            if current_call and baseline_call:
+                similarity = self._calculate_tool_call_similarity(current_call, baseline_call)
+            
+            aligned.append((current_call, baseline_call, similarity))
+        
+        return aligned
+    
+    def _generate_tool_call_html(self, tool_call: Dict, call_id: str, similarity: Dict = None) -> str:
+        """Generate HTML for a single tool call."""
+        tool_name = tool_call['tool_name']
+        turn_num = tool_call['turn']
+        
+        # Similarity badge
+        similarity_badge = ""
+        if similarity:
+            score = similarity['overall_similarity']
+            score_class = self._get_score_class(score)
+            similarity_badge = f'<span class="similarity-score {score_class}">{score:.3f}</span>'
+        
+        html = f"""
+            <div class="tool-call-item">
+                <div class="tool-call-header" onclick="toggleToolCall('{call_id}')">
+                    <div>
+                        <span class="tool-call-name">🔧 {tool_name}</span>
+                        <small style="color: #666;"> (Turn {turn_num})</small>
+                    </div>
+                    <div>
+                        {similarity_badge}
+                        <span class="tool-toggle" id="tool-toggle-{call_id}">▶ Expand</span>
+                    </div>
+                </div>
+                <div class="tool-call-details" id="tool-details-{call_id}">
+                    <div class="tool-section">
+                        <div class="tool-section-title">📥 Input Arguments:</div>
+                        <div class="tool-json-content">{self._format_json_with_colors(tool_call['tool_input'])}</div>
+                    </div>
+                    
+                    <div class="tool-section">
+                        <div class="tool-section-title">📤 Output Result:</div>
+                        <div class="tool-json-content">{self._format_json_with_colors(self._parse_tool_result(tool_call['tool_result']))}</div>
+                    </div>
+        """
+        
+        if similarity:
+            html += f"""
+                    <div class="tool-section">
+                        <div class="tool-section-title">📊 Similarity Metrics:</div>
+                        <div style="background: #f8f9fa; padding: 10px; border-radius: 4px;">
+                            <strong>Overall:</strong> <span class="similarity-score {self._get_score_class(similarity['overall_similarity'])}">{similarity['overall_similarity']:.3f}</span><br>
+                            <strong>Name Match:</strong> <span class="similarity-score {'score-high' if similarity['name_match'] else 'score-low'}">{'✅' if similarity['name_match'] else '❌'}</span><br>
+                            <strong>Args Similarity:</strong> <span class="similarity-score {self._get_score_class(similarity['args_similarity'])}">{similarity['args_similarity']:.3f}</span>
+                        </div>
+                    </div>
+            """
+        
+        html += """
+                </div>
+            </div>
+        """
+        
+        return html
+    
+    def _parse_tool_result(self, result: Any) -> Any:
+        """Parse tool result, handling JSON strings."""
+        if isinstance(result, str):
+            try:
+                return json.loads(result)
+            except (json.JSONDecodeError, TypeError):
+                return result
+        return result

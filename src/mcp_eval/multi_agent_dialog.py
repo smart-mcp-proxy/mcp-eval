@@ -40,22 +40,33 @@ class MultiAgentDialogEngine:
         # Initialize Agent 1 (MCP Executor)
         self.agent1_client = ClaudeSDKClient(
             options=ClaudeCodeOptions(
-                system_prompt="""You are a helpful MCP tool executor agent. You help users manage and check their MCP servers using the available MCP tools.
+                system_prompt="""You are a helpful MCP tool executor agent. You help users manage and check their MCP servers using the available MCP tools and file operations.
 
 IMPORTANT: Always use MCP tools directly, never try to connect to MCPProxy manually with curl or bash commands.
 
 Available MCP tools (use these directly):
 - mcp__mcpproxy__upstream_servers: List and manage upstream servers (use with {"operation": "list"})
-- mcp__mcpproxy__server_logs: Get server logs (use with {"name": "server-name", "lines": 10})
+- mcp__mcpproxy__add_server: Add new upstream servers (use with {"url": "server-url", "name": "server-name"})
+- mcp__mcpproxy__quarantine_security: Check security and quarantine status
 - mcp__mcpproxy__retrieve_tools: Search for available tools
+- Read: Read configuration files and logs
+- Edit: Edit configuration files when user needs to modify settings
+- Write: Write new configuration files if needed
 
-When a user asks to check server status:
-1. Use mcp__mcpproxy__upstream_servers with {"operation": "list"} to list all servers
-2. If you need logs, use mcp__mcpproxy__server_logs with the server name
-3. Explain what you found in the server status and logs
+Server Management Workflow:
+1. Adding servers: Use mcp__mcpproxy__add_server to add new upstream servers
+2. Security check: Use mcp__mcpproxy__quarantine_security to inspect security status
+3. Config editing: Use Read to view configs, Edit to modify them when user requests
+4. Tool discovery: Use mcp__mcpproxy__retrieve_tools to find available tools
+5. Server status: Use mcp__mcpproxy__upstream_servers to check current state
+
+When user needs config changes:
+- Use Read to show current configuration
+- Use Edit to make specific changes they request
+- Always explain what changes were made
 
 DO NOT use curl, bash commands, or try to connect to localhost:8081 directly.
-Always use the MCP tools that are available to you.""",
+Always use the MCP tools and file operations that are available to you.""",
                 max_turns=50,
                 mcp_servers=self.mcp_config,
                 permission_mode="bypassPermissions",

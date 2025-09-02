@@ -13,29 +13,40 @@ class MultiAgentHTMLReporter:
         self.report_dir = Path("reports")
         self.report_dir.mkdir(exist_ok=True)
     
-    def _extract_and_format_json(self, tool_result: Any) -> str:
-        """Extract JSON from tool result and format it properly."""
+    def _extract_and_format_json(self, tool_result: Any) -> Tuple[str, bool]:
+        """Extract JSON from tool result and format it properly. Returns (formatted_output, is_error)."""
         if not tool_result or not isinstance(tool_result, list) or len(tool_result) == 0:
-            return '<span class="json-null">No output</span>'
+            return '<span class="json-null">No output</span>', False
         
         first_result = tool_result[0]
         if not isinstance(first_result, dict):
-            return self._format_json_with_colors(first_result)
+            return self._format_json_with_colors(first_result), False
+        
+        # Check for error type
+        if first_result.get('type') == 'error':
+            error_msg = first_result.get('text', 'Unknown error')
+            return f'<span class="json-error">❌ {error_msg}</span>', True
         
         # Check if it's wrapped in the standard format
         if 'type' in first_result and first_result.get('type') == 'text' and 'text' in first_result:
             text_content = first_result['text']
             
+            # Check for common error patterns
+            if any(error_pattern in text_content.lower() for error_pattern in [
+                'error:', 'failed:', 'not found', 'invalid', 'unable to', 'could not', 'cannot'
+            ]):
+                return f'<span class="json-error">❌ {text_content}</span>', True
+            
             # Try to parse as JSON
             try:
                 parsed_json = json.loads(text_content)
-                return self._format_json_with_colors(parsed_json)
+                return self._format_json_with_colors(parsed_json), False
             except json.JSONDecodeError:
                 # If not JSON, return as formatted text
-                return f'<span class="json-string">"{text_content}"</span>'
+                return f'<span class="json-string">"{text_content}"</span>', False
         else:
             # Direct object, format as JSON
-            return self._format_json_with_colors(first_result)
+            return self._format_json_with_colors(first_result), False
     
     def _format_json_with_colors(self, obj: Any) -> str:
         """Format JSON with syntax highlighting."""
@@ -402,6 +413,17 @@ class MultiAgentHTMLReporter:
         .config-toggle:hover {{
             background: #0056b3;
         }}
+        .json-error {{
+            color: #721c24;
+            font-weight: bold;
+            background: #f8d7da;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }}
+        .tool-call-error {{
+            background: #fde8e8 !important;
+            border-left: 3px solid #dc3545 !important;
+        }}
     </style>
     <script>
         function toggleToolCall(toolId) {{
@@ -529,12 +551,13 @@ class MultiAgentHTMLReporter:
                     # Format tool input
                     input_str = str(tool_input)[:100] + ('...' if len(str(tool_input)) > 100 else '')
                     
-                    # Format tool output with structured JSON
-                    formatted_output = self._extract_and_format_json(tool_result)
+                    # Format tool output with structured JSON and error detection
+                    formatted_output, is_error = self._extract_and_format_json(tool_result)
+                    error_class = "tool-call-error" if is_error else "tool-call-summary"
                     
                     html += f"""
-                        <div class="tool-call-summary" style="margin: 10px 0; padding: 8px; background: #e8f5e8; border-left: 3px solid #28a745; border-radius: 4px;">
-                            <div style="font-weight: bold; color: #155724;">🔧 {tool_name}</div>
+                        <div class="{error_class}" style="margin: 10px 0; padding: 8px; background: {'#fde8e8' if is_error else '#e8f5e8'}; border-left: 3px solid {'#dc3545' if is_error else '#28a745'}; border-radius: 4px;">
+                            <div style="font-weight: bold; color: {'#721c24' if is_error else '#155724'};">{'❌' if is_error else '🔧'} {tool_name}</div>
                             <div style="font-size: 0.85em; color: #6c757d; margin: 4px 0;">
                                 <strong>Args:</strong> {input_str}
                             </div>
@@ -582,12 +605,13 @@ class MultiAgentHTMLReporter:
                     # Format tool input
                     input_str = str(tool_input)[:100] + ('...' if len(str(tool_input)) > 100 else '')
                     
-                    # Format tool output with structured JSON
-                    formatted_output = self._extract_and_format_json(tool_result)
+                    # Format tool output with structured JSON and error detection
+                    formatted_output, is_error = self._extract_and_format_json(tool_result)
+                    error_class = "tool-call-error" if is_error else "tool-call-summary"
                     
                     html += f"""
-                        <div class="tool-call-summary" style="margin: 10px 0; padding: 8px; background: #e8f5e8; border-left: 3px solid #28a745; border-radius: 4px;">
-                            <div style="font-weight: bold; color: #155724;">🔧 {tool_name}</div>
+                        <div class="{error_class}" style="margin: 10px 0; padding: 8px; background: {'#fde8e8' if is_error else '#e8f5e8'}; border-left: 3px solid {'#dc3545' if is_error else '#28a745'}; border-radius: 4px;">
+                            <div style="font-weight: bold; color: {'#721c24' if is_error else '#155724'};">{'❌' if is_error else '🔧'} {tool_name}</div>
                             <div style="font-size: 0.85em; color: #6c757d; margin: 4px 0;">
                                 <strong>Args:</strong> {input_str}
                             </div>

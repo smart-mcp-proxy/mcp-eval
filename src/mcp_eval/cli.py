@@ -6,8 +6,9 @@ import json
 import os
 import subprocess
 import time
+import traceback
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict
 from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -17,6 +18,8 @@ from .scenario_runner import FailureAwareScenarioRunner
 from .evaluator import TrajectoryEvaluator
 from .reporter import ReportGenerator
 from .html_reporter import HTMLReporter
+from .multi_agent_dialog import MultiAgentDialogEngine
+from .multi_turn_evaluator import MultiTurnDialogEvaluator
 
 console = Console()
 
@@ -474,17 +477,24 @@ def test(scenarios_dir: Path, tag: tuple, scenario: tuple, mcp_config: Path, ver
                 break
             continue
         
-        # Check if baseline exists for comparison
-        scenario_rel_path = get_scenario_relative_path(scenario_file)
-        baseline_dir = Path("baselines") / scenario_rel_path / f"{scenario_name}_baseline"
-        has_baseline = baseline_dir.exists() and (baseline_dir / "detailed_log.json").exists()
+        # Check scenario type and handle accordingly
+        scenario_type = scenario_data.get('type', 'standard')
         
-        if has_baseline:
-            # Run comparison mode
-            status, score = run_scenario_with_comparison(scenario_file, baseline_dir, mcp_config, verbose)
+        if scenario_type == 'multi_turn_dialog':
+            # Handle multi-turn dialog scenarios
+            status, score = run_multi_turn_scenario(scenario_file, scenario_data, mcp_config, verbose)
         else:
-            # Run baseline recording mode
-            status, score = run_scenario_baseline(scenario_file, mcp_config, verbose)
+            # Handle standard scenarios
+            scenario_rel_path = get_scenario_relative_path(scenario_file)
+            baseline_dir = Path("baselines") / scenario_rel_path / f"{scenario_name}_baseline"
+            has_baseline = baseline_dir.exists() and (baseline_dir / "detailed_log.json").exists()
+            
+            if has_baseline:
+                # Run comparison mode
+                status, score = run_scenario_with_comparison(scenario_file, baseline_dir, mcp_config, verbose)
+            else:
+                # Run baseline recording mode
+                status, score = run_scenario_baseline(scenario_file, mcp_config, verbose)
         
         # Format status with colors
         status_text = Text()
@@ -728,6 +738,103 @@ def run_scenario_with_comparison(scenario_file: Path, baseline_dir: Path, mcp_co
         return "ERROR", None
 
 
+def run_multi_turn_scenario(scenario_file: Path, scenario_data: Dict, mcp_config: Path, verbose: bool) -> tuple[str, Optional[float]]:
+    """Run multi-turn dialog scenario - record baseline if missing, compare if exists."""
+    import asyncio
+    import shutil
+    from .multi_turn_evaluator import MultiTurnDialogEvaluator
+    from .multi_agent_reporter import MultiAgentHTMLReporter
+    
+    scenario_name = scenario_file.stem
+    scenario_rel_path = get_scenario_relative_path(scenario_file)
+    baseline_dir = Path("baselines") / scenario_rel_path / f"{scenario_name}_baseline"
+    baseline_log_path = baseline_dir / "multi_agent_detailed_log.json"
+    
+    try:
+        # Check if baseline exists
+        if baseline_log_path.exists():
+            # Comparison mode
+            async def execute_and_compare():
+                temp_output = Path("temp_comparison_dialog")
+                if temp_output.exists():
+                    shutil.rmtree(temp_output)
+                
+                try:
+                    async with MultiAgentDialogEngine(scenario_data, str(mcp_config), temp_output) as engine:
+                        await engine.execute_multi_turn_dialog()
+                        
+                        # Load current and baseline results
+                        current_log_path = temp_output / "multi_agent_detailed_log.json"
+                        with open(current_log_path, 'r') as f:
+                            current_log = json.load(f)
+                        with open(baseline_log_path, 'r') as f:
+                            baseline_log = json.load(f)
+                        
+                        # Compare dialogs
+                        evaluator = MultiTurnDialogEvaluator()
+                        comparison_result = evaluator.compare_dialogs(current_log, baseline_log)
+                        
+                        # Generate HTML report
+                        reporter = MultiAgentHTMLReporter()
+                        html_report = reporter.generate_comparison_report(
+                            current_log, baseline_log, comparison_result, scenario_name, str(mcp_config)
+                        )
+                        
+                        if verbose:
+                            console.print(f"   [dim]📊 HTML report: {html_report}[/dim]")
+                        
+                        return comparison_result.get('overall_similarity', 0.0)
+                        
+                except Exception as e:
+                    if verbose:
+                        console.print(f"   [red]Dialog error: {e}[/red]")
+                    return None
+                finally:
+                    # Clean up temp files
+                    if temp_output.exists():
+                        shutil.rmtree(temp_output)
+            
+            score = asyncio.run(execute_and_compare())
+            if score is not None and score >= 0.6:  # Threshold for multi-turn similarity
+                return "PASS", score
+            else:
+                return "FAIL", score
+                
+        else:
+            # Record baseline mode
+            async def record_baseline():
+                try:
+                    baseline_dir.mkdir(parents=True, exist_ok=True)
+                    
+                    async with MultiAgentDialogEngine(scenario_data, str(mcp_config), baseline_dir) as engine:
+                        await engine.execute_multi_turn_dialog()
+                        
+                        # Generate HTML report for baseline
+                        if baseline_log_path.exists():
+                            with open(baseline_log_path, 'r') as f:
+                                baseline_log = json.load(f)
+                            
+                            reporter = MultiAgentHTMLReporter()
+                            html_report = reporter.generate_dialog_report(baseline_log, scenario_name)
+                            
+                            if verbose:
+                                console.print(f"   [dim]📊 Baseline HTML report: {html_report}[/dim]")
+                        
+                        return True
+                except Exception as e:
+                    if verbose:
+                        console.print(f"   [red]Recording error: {e}[/red]")
+                    return False
+            
+            success = asyncio.run(record_baseline())
+            return ("RECORDED", None) if success else ("ERROR", None)
+            
+    except Exception as e:
+        if verbose:
+            console.print(f"   [red]Multi-turn scenario error: {e}[/red]")
+        return "ERROR", None
+
+
 def run_scenario_baseline(scenario_file: Path, mcp_config: Path, verbose: bool) -> tuple[str, Optional[float]]:
     """Run scenario in baseline recording mode."""
     try:
@@ -765,6 +872,169 @@ def run_scenario_baseline(scenario_file: Path, mcp_config: Path, verbose: bool) 
         if verbose:
             console.print(f"   [red]Error: {e}[/red]")
         return "ERROR", None
+
+
+@cli.command()
+@click.option(
+    "--scenario", 
+    type=click.Path(exists=True, path_type=Path),
+    required=True,
+    help="Path to multi-turn scenario YAML file"
+)
+@click.option(
+    "--output",
+    type=click.Path(path_type=Path),
+    required=True, 
+    help="Output directory for dialog results"
+)
+@click.option(
+    "--mcp-config",
+    type=click.Path(exists=True, path_type=Path),
+    default="mcp_servers.json",
+    help="Path to MCP servers configuration file"
+)
+def record_multi_turn(scenario: Path, output: Path, mcp_config: Path):
+    """Record a multi-turn dialog baseline between user and agent."""
+    import asyncio
+    
+    console.print(f"🎭 [bold blue]Recording multi-turn dialog: {scenario.name}[/bold blue]")
+    
+    # Load scenario
+    try:
+        with open(scenario, 'r') as f:
+            scenario_data = yaml.safe_load(f)
+    except Exception as e:
+        console.print(f"❌ [red]Failed to load scenario: {e}[/red]")
+        return
+    
+    # Check if it's a multi-turn scenario
+    if scenario_data.get('type') != 'multi_turn_dialog':
+        console.print(f"❌ [red]Scenario is not a multi-turn dialog type[/red]")
+        return
+    
+    async def execute_dialog():
+        async with MultiAgentDialogEngine(scenario_data, str(mcp_config), output) as engine:
+            results = await engine.execute_multi_turn_dialog()
+            return results
+    
+    try:
+        results = asyncio.run(execute_dialog())
+        
+        if results.get('success'):
+            console.print(f"✅ [green]Multi-turn dialog recorded successfully[/green]")
+            console.print(f"📊 [blue]Total turns: {results['total_turns']}[/blue]")
+            console.print(f"📄 [dim]Results saved to: {output}[/dim]")
+        else:
+            console.print(f"❌ [red]Dialog recording failed[/red]")
+            
+    except Exception as e:
+        console.print(f"❌ [red]Error executing multi-turn dialog: {e}[/red]")
+        console.print(f"[dim]{traceback.format_exc()}[/dim]")
+
+
+@cli.command()
+@click.option(
+    "--scenario", 
+    type=click.Path(exists=True, path_type=Path),
+    required=True,
+    help="Path to multi-turn scenario YAML file"
+)
+@click.option(
+    "--baseline",
+    type=click.Path(exists=True, path_type=Path),
+    required=True, 
+    help="Path to baseline dialog results directory"
+)
+@click.option(
+    "--output",
+    type=click.Path(path_type=Path),
+    required=True, 
+    help="Output directory for comparison results"
+)
+@click.option(
+    "--mcp-config",
+    type=click.Path(exists=True, path_type=Path),
+    default="mcp_servers.json",
+    help="Path to MCP servers configuration file"
+)
+def compare_multi_turn(scenario: Path, baseline: Path, output: Path, mcp_config: Path):
+    """Compare a multi-turn dialog execution with baseline."""
+    import asyncio
+    
+    console.print(f"🔍 [bold blue]Comparing multi-turn dialog: {scenario.name}[/bold blue]")
+    
+    # Load scenario
+    try:
+        with open(scenario, 'r') as f:
+            scenario_data = yaml.safe_load(f)
+    except Exception as e:
+        console.print(f"❌ [red]Failed to load scenario: {e}[/red]")
+        return
+    
+    # Check if it's a multi-turn scenario
+    if scenario_data.get('type') != 'multi_turn_dialog':
+        console.print(f"❌ [red]Scenario is not a multi-turn dialog type[/red]")
+        return
+    
+    # Load baseline
+    try:
+        baseline_log_path = baseline / "multi_agent_detailed_log.json"
+        with open(baseline_log_path, 'r') as f:
+            baseline_log = json.load(f)
+    except Exception as e:
+        console.print(f"❌ [red]Failed to load baseline: {e}[/red]")
+        return
+    
+    async def execute_and_compare():
+        # Execute current dialog
+        temp_output = Path("temp_comparison_dialog")
+        async with MultiAgentDialogEngine(scenario_data, str(mcp_config), temp_output) as engine:
+            current_results = await engine.execute_multi_turn_dialog()
+            
+            # Load current results
+            current_log_path = temp_output / "multi_agent_detailed_log.json"
+            with open(current_log_path, 'r') as f:
+                current_log = json.load(f)
+        
+        # Compare dialogs
+        evaluator = MultiTurnDialogEvaluator()
+        comparison_result = evaluator.compare_dialogs(current_log, baseline_log)
+        
+        # Create output directory
+        output_dir = Path(output)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Save comparison results
+        comparison_path = output_dir / "dialog_comparison.json"
+        with open(comparison_path, 'w') as f:
+            json.dump(comparison_result, f, indent=2, default=str)
+        
+        # Generate HTML comparison report
+        from .multi_agent_reporter import MultiAgentHTMLReporter
+        reporter = MultiAgentHTMLReporter()
+        html_report = reporter.generate_comparison_report(current_log, baseline_log, comparison_result, scenario.stem, str(mcp_config))
+        
+        # Clean up temp files
+        import shutil
+        if temp_output.exists():
+            shutil.rmtree(temp_output)
+        
+        return comparison_result, html_report
+    
+    try:
+        comparison_result, html_report = asyncio.run(execute_and_compare())
+        
+        # Display results
+        overall_score = comparison_result.get('overall_similarity', 0.0)
+        console.print(f"📊 [bold]Overall Similarity: {overall_score:.3f}[/bold]")
+        console.print(f"🔧 Trajectory Similarity: {comparison_result.get('trajectory_similarity', 0.0):.3f}")
+        console.print(f"💬 Dialog Flow Similarity: {comparison_result.get('dialog_flow_similarity', 0.0):.3f}")
+        console.print(f"🔄 Turn Similarity: {comparison_result.get('turn_similarity', 0.0):.3f}")
+        console.print(f"📈 [blue]HTML Report: {html_report}[/blue]")
+        
+    except Exception as e:
+        console.print(f"❌ [red]Error comparing multi-turn dialogs: {e}[/red]")
+        console.print(f"[dim]{traceback.format_exc()}[/dim]")
 
 
 if __name__ == "__main__":

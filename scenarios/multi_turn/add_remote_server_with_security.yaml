@@ -1,0 +1,59 @@
+name: "Add Remote MCP Server with Security Workflow"
+description: "Complete workflow for adding a remote upstream server, security inspection, manual config editing, and tool usage"
+type: "multi_turn_dialog"
+config_file: "configs/no_quarantine_config.json"
+
+initial_user_intent: "I want to add a new upstream server: https://mcp-client-benchmark.remote-mcp-servers.com/mcp"
+
+expected_dialog_flow:
+  - turn: 1
+    agent_action: "Add the remote upstream server using mcp__mcpproxy__add_server"
+    expected_tools:
+      - "mcp__mcpproxy__add_server"
+      - "mcp__mcpproxy__upstream_servers"
+    user_response_pattern: "Good. Now check the security status and inspect what happened to the server"
+    
+  - turn: 2
+    agent_action: "Check server security status and quarantine information"
+    expected_tools:
+      - "mcp__mcpproxy__quarantine_security"
+      - "mcp__mcpproxy__upstream_servers"
+    user_response_pattern: "I need to manually edit the config to set quarantined: false. Help me with that"
+    
+  - turn: 3
+    agent_action: "Help user edit the MCPProxy configuration to unquarantine the server"
+    expected_tools:
+      - "Read"
+      - "Edit" 
+    user_response_pattern: "Now restart the connection and check if tools are available from the new server"
+    
+  - turn: 4
+    agent_action: "Restart connection and discover tools from the new server"
+    expected_tools:
+      - "mcp__mcpproxy__upstream_servers"
+      - "mcp__mcpproxy__retrieve_tools"
+    user_response_pattern: "Try using one of the tools from the new server"
+    
+  - turn: 5
+    agent_action: "Use a tool from the newly added remote server"
+    expected_tools:
+      - "mcp__server_benchmark__*" # Tool from remote server
+    user_response_pattern: "Good, the server integration is working"
+
+max_turns: 10
+
+success_criteria:
+  - "Successfully adds remote upstream server"
+  - "Detects server is quarantined for security"
+  - "Helps user edit configuration file to unquarantine server"
+  - "Discovers and uses tools from the newly added server"
+  - "Demonstrates complete server addition workflow"
+  - "Shows security workflow with manual intervention"
+
+tags:
+  - "multi_turn_dialog"
+  - "server_management"
+  - "security_workflow"
+  - "config_editing"
+  - "remote_server_integration"
+  - "advanced_scenario"

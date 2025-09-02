@@ -1,0 +1,82 @@
+{
+  "overall_similarity": 0.944,
+  "trajectory_similarity": 0.999,
+  "dialog_flow_similarity": 0.841,
+  "turn_similarity": 1.0,
+  "current_turns": 5,
+  "baseline_turns": 5,
+  "current_tool_calls": 3,
+  "baseline_tool_calls": 3,
+  "turn_by_turn_analysis": [
+    {
+      "turn_number": 0,
+      "current_present": true,
+      "baseline_present": true,
+      "current_speaker": "User",
+      "current_tool_calls": 0,
+      "current_message_length": 53,
+      "baseline_speaker": "User",
+      "baseline_tool_calls": 0,
+      "baseline_message_length": 53,
+      "similarity": 1.0
+    },
+    {
+      "turn_number": 1,
+      "current_present": true,
+      "baseline_present": true,
+      "current_speaker": "Agent",
+      "current_tool_calls": 3,
+      "current_message_length": 1230,
+      "baseline_speaker": "Agent",
+      "baseline_tool_calls": 3,
+      "baseline_message_length": 1121,
+      "similarity": 1.0
+    },
+    {
+      "turn_number": 2,
+      "current_present": true,
+      "baseline_present": true,
+      "current_speaker": "User",
+      "current_tool_calls": 0,
+      "current_message_length": 191,
+      "baseline_speaker": "User",
+      "baseline_tool_calls": 0,
+      "baseline_message_length": 169,
+      "similarity": 1.0
+    },
+    {
+      "turn_number": 3,
+      "current_present": true,
+      "baseline_present": true,
+      "current_speaker": "Agent",
+      "current_tool_calls": 0,
+      "current_message_length": 34,
+      "baseline_speaker": "Agent",
+      "baseline_tool_calls": 0,
+      "baseline_message_length": 335,
+      "similarity": 1.0
+    },
+    {
+      "turn_number": 4,
+      "current_present": true,
+      "baseline_present": true,
+      "current_speaker": "User",
+      "current_tool_calls": 0,
+      "current_message_length": 34,
+      "baseline_speaker": "User",
+      "baseline_tool_calls": 0,
+      "baseline_message_length": 66,
+      "similarity": 1.0
+    }
+  ],
+  "tool_usage_comparison": {
+    "common_tools": [
+      "mcp__mcpproxy__upstream_servers"
+    ],
+    "current_only_tools": [],
+    "baseline_only_tools": [],
+    "tool_overlap_ratio": 1.0,
+    "current_tool_count": 3,
+    "baseline_tool_count": 3
+  }
+}

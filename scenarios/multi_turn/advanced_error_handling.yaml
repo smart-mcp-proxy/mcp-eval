@@ -1,0 +1,43 @@
+name: "Advanced Error Handling Scenario"
+description: "Complex scenario involving tool failures, error recovery, and troubleshooting"
+type: "multi_turn_dialog"
+config_file: "configs/no_quarantine_config.json"
+
+initial_user_intent: "I'm trying to debug some server issues. First check the logs for 'defillama-mcp' server, then look for tools that might help with connection troubleshooting."
+
+expected_dialog_flow:
+  - turn: 1
+    agent_action: "Attempt to check server logs - will likely fail as tool doesn't exist"
+    expected_tools:
+      - "mcp__mcpproxy__server_logs"  # This will fail
+      - "mcp__mcpproxy__upstream_servers"
+    user_response_pattern: "That tool failed. Try checking what tools are actually available"
+    
+  - turn: 2
+    agent_action: "Search for available tools and provide alternatives"
+    expected_tools:
+      - "mcp__mcpproxy__retrieve_tools"
+      - "mcp__mcpproxy__upstream_servers"
+    user_response_pattern: "Check if there are any network diagnostic tools available"
+    
+  - turn: 3
+    agent_action: "Search for network/diagnostic tools and explain limitations"
+    expected_tools:
+      - "mcp__mcpproxy__retrieve_tools"
+    user_response_pattern: "Let me try a different approach with external tools"
+
+max_turns: 6
+
+success_criteria:
+  - "Agent encounters tool failures and handles them gracefully"
+  - "Agent uses mcp__mcpproxy__retrieve_tools to discover available tools"
+  - "Agent provides helpful alternatives when tools fail"
+  - "Error responses are clearly visible in the report"
+  - "User provides realistic troubleshooting directions"
+
+tags:
+  - "multi_turn_dialog"
+  - "error_handling"
+  - "troubleshooting"
+  - "tool_discovery"
+  - "advanced_scenario"

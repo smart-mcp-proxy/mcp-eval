@@ -1,0 +1,38 @@
+enabled: true
+name: "Multi-Turn Server Troubleshooting Dialog"
+description: "User and agent collaborate to diagnose and fix a quarantined server through natural dialog"
+type: "multi_turn_dialog"
+config_file: "configs/no_quarantine_config.json"
+
+initial_user_intent: "My defillama server isn't working properly. Can you help me figure out what's wrong?"
+
+expected_dialog_flow:
+  - turn: 1
+    agent_action: "Check server status and list servers"
+    expected_tools: ["mcp__mcpproxy__upstream_servers"]
+    user_response_pattern: "Yes, please check what you can find"
+    
+  - turn: 2
+    agent_action: "Investigate server logs or quarantine status"
+    expected_tools: ["mcp__mcpproxy__server_logs"]
+    user_response_pattern: "Can you help fix it? What should I do?"
+    
+  - turn: 3
+    agent_action: "Provide solution or verify status"
+    expected_tools: ["mcp__mcpproxy__upstream_servers", "mcp__mcpproxy__retrieve_tools"]
+    user_response_pattern: "That looks better! Thank you for the help"
+
+max_turns: 6
+
+success_criteria:
+  - "Agent checks server status using upstream_servers tool"
+  - "Agent investigates logs or quarantine status" 
+  - "User responds naturally to agent questions/findings"
+  - "Dialog completes in 3-6 turns with natural conclusion"
+  - "Both agents participate in troubleshooting process"
+
+tags:
+  - "multi_turn_dialog"
+  - "server_management" 
+  - "troubleshooting"
+  - "defillama"

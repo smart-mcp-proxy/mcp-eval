@@ -1,0 +1,45 @@
+enabled: true
+name: "Debug Server Connection Issue with Clarifications"
+description: "Agent needs user clarification to debug complex server connection problems"
+type: "multi_turn_dialog"
+config_file: "configs/no_quarantine_config.json"
+
+initial_user_intent: "I'm having issues with one of my MCP servers - it was working yesterday but now it's not responding. Can you help debug this?"
+
+expected_dialog_flow:
+  - turn: 1
+    agent_action: "Get initial server status and ask for clarification about which server"
+    expected_tools: ["mcp__mcpproxy__upstream_servers"]
+    user_response_pattern: "The defillama server is the one having issues"
+    
+  - turn: 2
+    agent_action: "Check server logs and quarantine status, may ask about recent changes"
+    expected_tools: ["mcp__mcpproxy__server_logs", "mcp__mcpproxy__quarantine_security"]
+    user_response_pattern: "I didn't make any config changes recently"
+    
+  - turn: 3
+    agent_action: "Analyze findings and ask user about preferred solution approach"
+    expected_tools: ["mcp__mcpproxy__upstream_servers"]
+    user_response_pattern: "Let me unquarantine it and restart the connection"
+    
+  - turn: 4
+    agent_action: "Provide guidance on unquarantining or verify connection status"
+    expected_tools: []
+    user_response_pattern: "That should fix it. Let me verify the connection"
+
+max_turns: 8
+
+success_criteria:
+  - "Agent checks server status first"
+  - "Agent asks clarifying questions about which server and recent changes"
+  - "User provides specific technical responses"
+  - "Agent provides actionable debugging steps"
+  - "Dialog includes investigation and solution discussion"
+  - "User takes ownership of implementing fixes"
+
+tags:
+  - "multi_turn_dialog"
+  - "debugging"
+  - "server_management"
+  - "clarification"
+  - "technical_support"

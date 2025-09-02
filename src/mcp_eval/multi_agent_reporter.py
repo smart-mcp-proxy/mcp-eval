@@ -13,6 +13,30 @@ class MultiAgentHTMLReporter:
         self.report_dir = Path("reports")
         self.report_dir.mkdir(exist_ok=True)
     
+    def _extract_and_format_json(self, tool_result: Any) -> str:
+        """Extract JSON from tool result and format it properly."""
+        if not tool_result or not isinstance(tool_result, list) or len(tool_result) == 0:
+            return '<span class="json-null">No output</span>'
+        
+        first_result = tool_result[0]
+        if not isinstance(first_result, dict):
+            return self._format_json_with_colors(first_result)
+        
+        # Check if it's wrapped in the standard format
+        if 'type' in first_result and first_result.get('type') == 'text' and 'text' in first_result:
+            text_content = first_result['text']
+            
+            # Try to parse as JSON
+            try:
+                parsed_json = json.loads(text_content)
+                return self._format_json_with_colors(parsed_json)
+            except json.JSONDecodeError:
+                # If not JSON, return as formatted text
+                return f'<span class="json-string">"{text_content}"</span>'
+        else:
+            # Direct object, format as JSON
+            return self._format_json_with_colors(first_result)
+    
     def _format_json_with_colors(self, obj: Any) -> str:
         """Format JSON with syntax highlighting."""
         if not obj:
@@ -61,7 +85,7 @@ class MultiAgentHTMLReporter:
         return str(report_path)
     
     def generate_comparison_report(self, current_log: Dict[str, Any], baseline_log: Dict[str, Any], 
-                                 comparison_result: Dict[str, Any], scenario_name: str) -> str:
+                                 comparison_result: Dict[str, Any], scenario_name: str, mcp_config: str = None) -> str:
         """Generate an HTML comparison report between current and baseline dialogs."""
         
         # Generate unique filename
@@ -72,7 +96,7 @@ class MultiAgentHTMLReporter:
         baseline_conversation = baseline_log.get("conversation_log", [])
         
         html_content = self._generate_comparison_html(
-            current_conversation, baseline_conversation, comparison_result, current_log.get("scenario_data", {})
+            current_conversation, baseline_conversation, comparison_result, current_log.get("scenario_data", {}), mcp_config
         )
         
         with open(report_path, 'w') as f:
@@ -125,7 +149,7 @@ class MultiAgentHTMLReporter:
         }
 
     def _generate_comparison_html(self, current_conversation: List[Dict], baseline_conversation: List[Dict], 
-                                comparison_result: Dict[str, Any], scenario_data: Dict) -> str:
+                                comparison_result: Dict[str, Any], scenario_data: Dict, mcp_config: str = None) -> str:
         """Generate HTML content for comparison report."""
         
         scenario_name = scenario_data.get('name', 'Unknown Scenario')
@@ -365,6 +389,19 @@ class MultiAgentHTMLReporter:
             font-size: 0.8em;
             color: #6c757d;
         }}
+        .config-toggle {{
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.2s;
+        }}
+        .config-toggle:hover {{
+            background: #0056b3;
+        }}
     </style>
     <script>
         function toggleToolCall(toolId) {{
@@ -415,8 +452,51 @@ class MultiAgentHTMLReporter:
                     <div>Turn Sequence</div>
                 </div>
             </div>
+        </div>"""
+        
+        # Add MCP config section if available
+        if mcp_config:
+            try:
+                # Try to format as JSON if it's a file path
+                if mcp_config.endswith('.json') and Path(mcp_config).exists():
+                    with open(mcp_config, 'r') as f:
+                        config_content = f.read()
+                        config_json = json.loads(config_content)
+                        formatted_config = self._format_json_with_colors(config_json)
+                else:
+                    # Assume it's already JSON content
+                    config_json = json.loads(mcp_config) if isinstance(mcp_config, str) else mcp_config
+                    formatted_config = self._format_json_with_colors(config_json)
+            except (json.JSONDecodeError, FileNotFoundError):
+                formatted_config = f'<span class="json-string">{mcp_config}</span>'
+            
+            html += f"""
+        <div class="score-section">
+            <h3>⚙️ MCP Configuration</h3>
+            <div style="margin-bottom: 10px;">
+                <button onclick="toggleConfig()" class="config-toggle" id="config-toggle">▶ Show Configuration</button>
+            </div>
+            <div id="mcp-config" style="display: none;">
+                <div class="tool-json-content">{formatted_config}</div>
+            </div>
         </div>
         
+        <script>
+            function toggleConfig() {{
+                const config = document.getElementById('mcp-config');
+                const toggle = document.getElementById('config-toggle');
+                
+                if (config.style.display === 'none') {{
+                    config.style.display = 'block';
+                    toggle.textContent = '▼ Hide Configuration';
+                }} else {{
+                    config.style.display = 'none';
+                    toggle.textContent = '▶ Show Configuration';
+                }}
+            }}
+        </script>"""
+        
+        html += """
         <div class="comparison-grid">
             <div class="dialog-column">
                 <div class="column-header current-header">
@@ -449,15 +529,8 @@ class MultiAgentHTMLReporter:
                     # Format tool input
                     input_str = str(tool_input)[:100] + ('...' if len(str(tool_input)) > 100 else '')
                     
-                    # Format tool output
-                    if tool_result and isinstance(tool_result, list) and len(tool_result) > 0:
-                        first_result = tool_result[0]
-                        if isinstance(first_result, dict) and 'text' in first_result:
-                            output_str = first_result['text'][:100] + ('...' if len(first_result['text']) > 100 else '')
-                        else:
-                            output_str = str(first_result)[:100] + ('...' if len(str(first_result)) > 100 else '')
-                    else:
-                        output_str = 'No output'
+                    # Format tool output with structured JSON
+                    formatted_output = self._extract_and_format_json(tool_result)
                     
                     html += f"""
                         <div class="tool-call-summary" style="margin: 10px 0; padding: 8px; background: #e8f5e8; border-left: 3px solid #28a745; border-radius: 4px;">
@@ -465,8 +538,9 @@ class MultiAgentHTMLReporter:
                             <div style="font-size: 0.85em; color: #6c757d; margin: 4px 0;">
                                 <strong>Args:</strong> {input_str}
                             </div>
-                            <div style="font-size: 0.85em; color: #6c757d;">
-                                <strong>Output:</strong> {output_str}
+                            <div style="font-size: 0.85em; color: #333; margin-top: 8px;">
+                                <strong>Output:</strong>
+                                <div class="tool-json-content" style="margin-top: 4px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-family: monospace; font-size: 0.9em;">{formatted_output}</div>
                             </div>
                         </div>"""
             
@@ -508,15 +582,8 @@ class MultiAgentHTMLReporter:
                     # Format tool input
                     input_str = str(tool_input)[:100] + ('...' if len(str(tool_input)) > 100 else '')
                     
-                    # Format tool output
-                    if tool_result and isinstance(tool_result, list) and len(tool_result) > 0:
-                        first_result = tool_result[0]
-                        if isinstance(first_result, dict) and 'text' in first_result:
-                            output_str = first_result['text'][:100] + ('...' if len(first_result['text']) > 100 else '')
-                        else:
-                            output_str = str(first_result)[:100] + ('...' if len(str(first_result)) > 100 else '')
-                    else:
-                        output_str = 'No output'
+                    # Format tool output with structured JSON
+                    formatted_output = self._extract_and_format_json(tool_result)
                     
                     html += f"""
                         <div class="tool-call-summary" style="margin: 10px 0; padding: 8px; background: #e8f5e8; border-left: 3px solid #28a745; border-radius: 4px;">
@@ -524,8 +591,9 @@ class MultiAgentHTMLReporter:
                             <div style="font-size: 0.85em; color: #6c757d; margin: 4px 0;">
                                 <strong>Args:</strong> {input_str}
                             </div>
-                            <div style="font-size: 0.85em; color: #6c757d;">
-                                <strong>Output:</strong> {output_str}
+                            <div style="font-size: 0.85em; color: #333; margin-top: 8px;">
+                                <strong>Output:</strong>
+                                <div class="tool-json-content" style="margin-top: 4px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-family: monospace; font-size: 0.9em;">{formatted_output}</div>
                             </div>
                         </div>"""
             

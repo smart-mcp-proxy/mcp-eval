@@ -777,7 +777,7 @@ def run_multi_turn_scenario(scenario_file: Path, scenario_data: Dict, mcp_config
                         # Generate HTML report
                         reporter = MultiAgentHTMLReporter()
                         html_report = reporter.generate_comparison_report(
-                            current_log, baseline_log, comparison_result, scenario_name
+                            current_log, baseline_log, comparison_result, scenario_name, str(mcp_config)
                         )
                         
                         if verbose:
@@ -1012,7 +1012,7 @@ def compare_multi_turn(scenario: Path, baseline: Path, output: Path, mcp_config:
         # Generate HTML comparison report
         from .multi_agent_reporter import MultiAgentHTMLReporter
         reporter = MultiAgentHTMLReporter()
-        html_report = reporter.generate_comparison_report(current_log, baseline_log, comparison_result, scenario.stem)
+        html_report = reporter.generate_comparison_report(current_log, baseline_log, comparison_result, scenario.stem, str(mcp_config))
         
         # Clean up temp files
         import shutil

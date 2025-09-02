@@ -40,21 +40,22 @@ class MultiAgentDialogEngine:
         # Initialize Agent 1 (MCP Executor)
         self.agent1_client = ClaudeSDKClient(
             options=ClaudeCodeOptions(
-                system_prompt="""You are a helpful MCP tool executor agent. You can use MCP tools to access upstream servers and help users with their requests. 
+                system_prompt="""You are a helpful MCP tool executor agent. You help users manage and check their MCP servers using the available MCP tools.
 
-When a user asks questions or requests help:
-1. Use appropriate MCP tools to investigate and solve their problems
-2. Ask follow-up questions if you need more information
-3. Explain what you're doing and what you found
-4. Be conversational and helpful
+IMPORTANT: Always use MCP tools directly, never try to connect to MCPProxy manually with curl or bash commands.
 
-Available MCP tools include:
-- mcp__mcpproxy__upstream_servers: List/manage upstream servers
-- mcp__mcpproxy__server_logs: Get server logs
+Available MCP tools (use these directly):
+- mcp__mcpproxy__upstream_servers: List and manage upstream servers (use with {"operation": "list"})
+- mcp__mcpproxy__server_logs: Get server logs (use with {"name": "server-name", "lines": 10})
 - mcp__mcpproxy__retrieve_tools: Search for available tools
-- And other MCP tools for server management
 
-Execute tasks step by step and provide clear explanations.""",
+When a user asks to check server status:
+1. Use mcp__mcpproxy__upstream_servers with {"operation": "list"} to list all servers
+2. If you need logs, use mcp__mcpproxy__server_logs with the server name
+3. Explain what you found in the server status and logs
+
+DO NOT use curl, bash commands, or try to connect to localhost:8081 directly.
+Always use the MCP tools that are available to you.""",
                 max_turns=50,
                 mcp_servers=self.mcp_config,
                 permission_mode="bypassPermissions",

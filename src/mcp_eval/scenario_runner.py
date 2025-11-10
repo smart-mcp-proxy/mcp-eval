@@ -9,12 +9,16 @@ from datetime import datetime
 from pathlib import Path
 import traceback
 
-from claude_code_sdk import ClaudeSDKClient, ClaudeCodeOptions
+from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 from rich.console import Console
 from rich.table import Table
 from rich import box
 from rich.panel import Panel
 from rich.text import Text
+
+from .dialog_session import DialogSession
+from .dialog_models import DialogTurn, TurnType, Actor, SessionStatus
+from .agents import UserAgent, AIAgent
 
 console = Console()
 
@@ -191,7 +195,7 @@ class FailureAwareScenarioRunner:
     async def _discover_tools(self) -> Dict[str, Any]:
         """Discover available tools from MCP servers."""
         try:
-            from claude_code_sdk import ClaudeSDKClient
+            from claude_agent_sdk import ClaudeSDKClient
             import asyncio
             
             # Wait a bit longer after Docker restart to ensure MCPProxy is fully ready
@@ -200,10 +204,10 @@ class FailureAwareScenarioRunner:
             
             # Create a temporary SDK client to discover tools
             client = ClaudeSDKClient(
-                options=ClaudeCodeOptions(
+                options=ClaudeAgentOptions(
                     mcp_servers=self.mcp_config,
                     permission_mode="bypassPermissions",
-                    model="claude-3-5-sonnet-20241022",
+                    model="claude-sonnet-4-5-20250929",
                     settings="claude_settings.json"  # Settings file with temperature=0.0
                 )
             )
@@ -368,16 +372,19 @@ class FailureAwareScenarioRunner:
         }
         
         try:
-            # Execute scenario with Claude SDK
-            success = await self._execute_with_claude(user_intent, execution_data)
-            
+            # Execute scenario with DialogSession (dual-agent architecture)
+            success = await self._execute_with_dialog_session(
+                scenario_data,
+                execution_data
+            )
+
             # Analyze execution results
             self._analyze_execution_results(execution_data)
-            
+
             # Generate human validation report
             if mode == "baseline":
                 self._generate_validation_report(execution_data, scenario_file)
-            
+
             return success, execution_data
             
         except Exception as e:
@@ -387,92 +394,160 @@ class FailureAwareScenarioRunner:
             execution_data["traceback"] = traceback.format_exc()
             return False, execution_data
     
-    async def _execute_with_claude(self, user_intent: str, execution_data: Dict[str, Any]) -> bool:
-        """Execute scenario with Claude SDK and track all interactions."""
-        
-        async with ClaudeSDKClient(
-            options=ClaudeCodeOptions(
-                system_prompt="You are a helpful agent that can use MCP tools to access upstream servers. Execute tasks step by step and provide clear explanations.",
-                max_turns=100,
-                mcp_servers=self.mcp_config,
-                permission_mode="bypassPermissions",
-                model="claude-3-5-sonnet-20241022",
-                settings="claude_settings.json"  # Settings file with temperature=0.0
-            )
-        ) as client:
-            
-            # Send user query
-            console.print(f"💬 [cyan]Sending query: {user_intent}[/cyan]")
-            await client.query(user_intent)
-            
-            message_count = 0
-            current_tool_call = None
-            
-            async for message in client.receive_response():
-                message_count += 1
-                
-                # Log full message
-                execution_data["messages"].append({
-                    "timestamp": datetime.now().isoformat(),
-                    "message_number": message_count,
-                    "type": type(message).__name__,
-                    "content": self._serialize_message(message)
-                })
-                
-                # Process message content
-                if hasattr(message, 'content'):
-                    for block in message.content:
-                        if hasattr(block, 'name') and hasattr(block, 'id'):  # Tool use block
-                            current_tool_call = {
-                                "tool_name": block.name,
-                                "tool_id": block.id,
-                                "tool_input": getattr(block, 'input', {}),
-                                "timestamp": datetime.now().isoformat(),
-                                "response": None,
-                                "error": None
-                            }
-                            
-                            console.print(f"🔧 [green]Tool Call: {block.name}[/green]")
-                            
-                        elif hasattr(block, 'tool_use_id') and hasattr(block, 'content'):  # Tool result block
-                            if current_tool_call and current_tool_call["tool_id"] == block.tool_use_id:
-                                # Parse tool result
-                                try:
-                                    parsed_content = json.loads(block.content)
-                                except (json.JSONDecodeError, TypeError):
-                                    parsed_content = block.content
-                                
-                                current_tool_call["response"] = {
-                                    "content": [{
-                                        "type": "text",
-                                        "text": block.content
-                                    }],
-                                    "is_error": getattr(block, 'is_error', None)
-                                }
-                                
-                                # Check for errors
-                                if getattr(block, 'is_error', None) or self._detect_error_in_response(parsed_content):
-                                    current_tool_call["error"] = self._extract_error_message(parsed_content, block)
-                                    console.print(f"❌ [red]Tool Error: {current_tool_call['error']}[/red]")
-                                else:
-                                    console.print(f"✅ [green]Tool Success[/green]")
-                                
-                                # Add to summary and check for early stopping
-                                execution_data["tool_calls_summary"].append(current_tool_call.copy())
-                                
-                                # Check if this is a critical failure that should stop execution
-                                if self._is_critical_failure(current_tool_call):
-                                    console.print(f"🚫 [bold red]Critical failure detected - stopping execution[/bold red]")
-                                    execution_data["early_stopped"] = True
-                                    execution_data["execution_status"] = "BLOCKED"
-                                    return False
-                                
-                                current_tool_call = None
-                        
-                        elif hasattr(block, 'text'):  # Text response
-                            console.print(f"💭 [white]{block.text[:100]}...[/white]")
-            
-            return True
+    async def _execute_with_dialog_session(
+        self,
+        scenario_data: Dict[str, Any],
+        execution_data: Dict[str, Any]
+    ) -> bool:
+        """Execute scenario using DialogSession with dual-agent architecture.
+
+        This implements Constitution Principle I: Dual-Agent Dialog Engine Architecture
+        """
+        import uuid
+
+        # Create User Agent (roleplays human user)
+        user_agent = UserAgent(
+            scenario=scenario_data,
+            max_turns=50
+        )
+
+        # Create AI Agent (has MCP access)
+        ai_agent = AIAgent(
+            mcp_config=self.mcp_config,
+            temperature=0.0,
+            system_prompt="You are a helpful agent that can use MCP tools to access upstream servers. Execute tasks step by step and provide clear explanations."
+        )
+
+        # Create DialogSession to orchestrate interaction
+        session_id = f"session_{uuid.uuid4().hex[:8]}"
+        dialog_session = DialogSession(
+            session_id=session_id,
+            scenario=scenario_data,
+            user_agent=user_agent,
+            ai_agent=ai_agent
+        )
+
+        console.print(f"💬 [cyan]Starting dialog session: {session_id}[/cyan]")
+        console.print(f"🎯 [cyan]User intent: {scenario_data.get('user_intent', '')}[/cyan]")
+
+        try:
+            # Execute dialog session
+            session_result = await dialog_session.execute()
+
+            # Extract dialog turns (Constitution Principle III: Structured Dialog Logging)
+            dialog_turns = session_result.get("turns", [])
+            execution_data["dialog_turns"] = dialog_turns
+
+            # Populate backward-compatible tool_calls_summary from dialog_turns
+            execution_data["tool_calls_summary"] = self._extract_tool_calls_from_turns(dialog_turns)
+
+            # Add session metadata to execution_data
+            execution_data["session_id"] = session_id
+            execution_data["dialog_session_status"] = session_result.get("status", "UNKNOWN")
+            execution_data["dialog_execution_time"] = session_result.get("execution_time", 0)
+
+            # Log dialog turns for console output
+            for turn_dict in dialog_turns:
+                turn_type = turn_dict.get("turn_type", "")
+                actor = turn_dict.get("actor", "")
+                content = turn_dict.get("content", "")
+
+                if turn_type == "USER_MESSAGE":
+                    console.print(f"👤 [bold cyan]User:[/bold cyan] {content[:100]}...")
+                elif turn_type == "AGENT_MESSAGE":
+                    console.print(f"🤖 [white]Agent:[/white] {content[:100]}...")
+                elif turn_type == "TOOL_CALL":
+                    tool_name = turn_dict.get("metadata", {}).get("tool_name", "unknown")
+                    console.print(f"🔧 [green]Tool Call: {tool_name}[/green]")
+                elif turn_type == "TOOL_RESULT":
+                    is_error = turn_dict.get("metadata", {}).get("is_error", False)
+                    if is_error:
+                        console.print(f"❌ [red]Tool Error[/red]")
+                    else:
+                        console.print(f"✅ [green]Tool Success[/green]")
+
+            # Check for early stopping based on critical failures
+            if self._has_critical_failure_in_turns(dialog_turns):
+                execution_data["early_stopped"] = True
+                execution_data["execution_status"] = "BLOCKED"
+                console.print(f"🚫 [bold red]Critical failure detected - execution blocked[/bold red]")
+                return False
+
+            return session_result.get("status") == "SUCCESS"
+
+        except Exception as e:
+            console.print(f"❌ [red]Dialog session failed: {e}[/red]")
+            execution_data["dialog_session_error"] = str(e)
+            execution_data["execution_status"] = "ERROR"
+            return False
+
+    def _extract_tool_calls_from_turns(self, dialog_turns: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Extract tool calls from dialog turns for backward compatibility.
+
+        Converts DialogTurn format to legacy tool_calls_summary format.
+        """
+        tool_calls = []
+        pending_tool_calls = {}  # Map tool_id to tool call data
+
+        for turn in dialog_turns:
+            turn_type = turn.get("turn_type", "")
+            metadata = turn.get("metadata", {})
+
+            if turn_type == "TOOL_CALL":
+                # Create tool call entry
+                tool_id = metadata.get("tool_id", "")
+                tool_call = {
+                    "tool_name": metadata.get("tool_name", "unknown"),
+                    "tool_id": tool_id,
+                    "tool_input": metadata.get("tool_input", {}),
+                    "timestamp": turn.get("timestamp", ""),
+                    "response": None,
+                    "error": None
+                }
+                pending_tool_calls[tool_id] = tool_call
+
+            elif turn_type == "TOOL_RESULT":
+                # Match with pending tool call
+                tool_use_id = metadata.get("tool_use_id", "")
+                if tool_use_id in pending_tool_calls:
+                    tool_call = pending_tool_calls[tool_use_id]
+
+                    # Add response
+                    tool_call["response"] = {
+                        "content": [{
+                            "type": "text",
+                            "text": turn.get("content", "")
+                        }],
+                        "is_error": metadata.get("is_error", False)
+                    }
+
+                    # Add error if present
+                    if metadata.get("is_error"):
+                        tool_call["error"] = turn.get("content", "Unknown error")
+
+                    # Add to completed tool calls
+                    tool_calls.append(tool_call)
+                    del pending_tool_calls[tool_use_id]
+
+        return tool_calls
+
+    def _has_critical_failure_in_turns(self, dialog_turns: List[Dict[str, Any]]) -> bool:
+        """Check if dialog turns contain critical failures that should block execution."""
+        for turn in dialog_turns:
+            if turn.get("turn_type") == "TOOL_RESULT":
+                metadata = turn.get("metadata", {})
+                if metadata.get("is_error"):
+                    # Check if this is a critical operation
+                    # Look for the corresponding tool call to get operation details
+                    tool_use_id = metadata.get("tool_use_id", "")
+                    for prev_turn in dialog_turns:
+                        if (prev_turn.get("turn_type") == "TOOL_CALL" and
+                            prev_turn.get("metadata", {}).get("tool_id") == tool_use_id):
+                            tool_input = prev_turn.get("metadata", {}).get("tool_input", {})
+                            operation = tool_input.get("operation", "").lower()
+                            if any(critical_op in operation for critical_op in self.critical_operations):
+                                return True
+        return False
     
     def _serialize_message(self, message) -> Dict[str, Any]:
         """Serialize message object for JSON storage."""
@@ -539,11 +614,22 @@ class FailureAwareScenarioRunner:
     def _analyze_execution_results(self, execution_data: Dict[str, Any]):
         """Analyze execution results and set status."""
         tool_calls = execution_data.get("tool_calls_summary", [])
-        
+
+        # Check for API key errors first
+        if self._has_api_key_error(execution_data):
+            execution_data["execution_status"] = "API_ERROR"
+            execution_data["failure_analysis"] = {
+                "total_tools": 0,
+                "failed_tools": 0,
+                "failures": [{"error": "Invalid API key - execution aborted"}],
+                "success_rate": 0.0
+            }
+            return
+
         if execution_data.get("early_stopped"):
             execution_data["execution_status"] = "BLOCKED"
             return
-        
+
         # Count failures
         failures = []
         for tool_call in tool_calls:
@@ -553,21 +639,53 @@ class FailureAwareScenarioRunner:
                     "operation": tool_call.get("tool_input", {}).get("operation", ""),
                     "error": tool_call.get("error")
                 })
-        
+
         execution_data["failure_analysis"] = {
             "total_tools": len(tool_calls),
             "failed_tools": len(failures),
             "failures": failures,
             "success_rate": (len(tool_calls) - len(failures)) / max(1, len(tool_calls))
         }
-        
+
         # Set overall status
-        if len(failures) == 0:
+        if len(tool_calls) == 0:
+            # No tool calls executed - this is an error condition
+            execution_data["execution_status"] = "NO_TOOLS_EXECUTED"
+        elif len(failures) == 0:
             execution_data["execution_status"] = "SUCCESS"
         elif len(failures) == len(tool_calls):
             execution_data["execution_status"] = "FAILED"
         else:
             execution_data["execution_status"] = "PARTIAL"
+
+    def _has_api_key_error(self, execution_data: Dict[str, Any]) -> bool:
+        """Check if execution failed due to invalid API key."""
+        messages = execution_data.get("messages", [])
+
+        for message in messages:
+            msg_type = message.get("type", "")
+
+            # Check ResultMessage for errors
+            if msg_type == "ResultMessage":
+                content = message.get("content", {})
+                if content.get("is_error") or content.get("_error"):
+                    result_text = str(content.get("result", ""))
+                    if "Invalid API key" in result_text or "invalid api key" in result_text.lower():
+                        return True
+
+            # Check AssistantMessage for API key errors
+            if msg_type == "AssistantMessage":
+                content = message.get("content", {})
+                if isinstance(content, dict):
+                    content_list = content.get("content", [])
+                    if isinstance(content_list, list):
+                        for block in content_list:
+                            if isinstance(block, dict):
+                                text = block.get("text", "")
+                                if "Invalid API key" in text or "invalid api key" in text.lower():
+                                    return True
+
+        return False
     
     def _generate_validation_report(self, execution_data: Dict[str, Any], scenario_file: Path):
         """Generate human validation report for baseline review."""

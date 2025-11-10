@@ -133,3 +133,105 @@ Evaluation engineers need to compare dialog turns between baseline and evaluatio
 - HTML report generator has access to read detailed_log.json files
 - Scenario execution already populates dialog_turns correctly (implemented in previous work)
 - Users have modern web browsers capable of rendering HTML5 reports
+
+## Prerequisites and Configuration *(mandatory)*
+
+### API Key Configuration
+
+**CRITICAL**: Claude Agent SDK authentication requires proper environment variable configuration:
+
+1. **OAuth Token Support (Recommended)**:
+   - The SDK supports `CLAUDE_CODE_OAUTH_TOKEN` as a fallback authentication method
+   - When `ANTHROPIC_API_KEY` is **not set**, the SDK automatically uses the OAuth token
+   - **DO NOT** set `ANTHROPIC_API_KEY` to an OAuth token value - this will fail validation
+   - Leave `ANTHROPIC_API_KEY` commented out or unset in `.env` to enable OAuth fallback
+   - OAuth tokens have format: `sk-ant-oat01-...`
+
+2. **API Key Configuration (Alternative)**:
+   - Set `ANTHROPIC_API_KEY` to a valid Anthropic API key from https://console.anthropic.com
+   - API keys have format: `sk-ant-api03-...`
+   - Note: SDK usage is billed separately from Claude Pro/Max subscriptions
+
+3. **Configuration Example** (`.env`):
+   ```bash
+   # Correct: Use OAuth token fallback (recommended)
+   # ANTHROPIC_API_KEY=""  # Leave commented out
+   CLAUDE_CODE_OAUTH_TOKEN="sk-ant-oat01-..."
+
+   # OR: Use API key directly
+   # ANTHROPIC_API_KEY="sk-ant-api03-..."
+   ```
+
+4. **Common Mistake**:
+   ```bash
+   # WRONG: Setting API key to OAuth token value causes "Invalid API key" error
+   ANTHROPIC_API_KEY="sk-ant-oat01-..."  # ❌ This will fail!
+   ```
+
+**Reference**: See GitHub issue [#6536](https://github.com/anthropics/claude-code/issues/6536) for details on OAuth vs API key authentication
+
+### MCP Server Connection Requirements
+
+**CRITICAL**: Three configuration requirements must be met for Claude Agent SDK to connect to MCPProxy:
+
+1. **allowed_tools Parameter (SDK Bug Workaround)**:
+   - **Known Bug**: Claude Agent SDK aborts connection if `allowed_tools` is empty or omitted
+   - **Solution**: Explicitly list MCPProxy tools in `ClaudeAgentOptions.allowed_tools`
+   - **Required Tools**:
+     ```python
+     allowed_tools=[
+         "mcp__mcpproxy__retrieve_tools",
+         "mcp__mcpproxy__call_tool",
+         "mcp__mcpproxy__read_cache",
+         "mcp__mcpproxy__upstream_servers",
+         "mcp__mcpproxy__quarantine_security",
+         "mcp__mcpproxy__search_servers",
+         "mcp__mcpproxy__list_registries"
+     ]
+     ```
+
+2. **mcp_servers as Dictionary (Not File Path)**:
+   - SDK requires `mcp_servers` parameter as a Python dict, not a JSON file path
+   - Load `mcp_servers.json`, extract `mcpServers` dict, and pass to SDK
+   - Example:
+     ```python
+     with open('mcp_servers.json', 'r') as f:
+         config_data = json.load(f)
+         mcp_config_dict = config_data.get('mcpServers', {})
+
+     options = ClaudeAgentOptions(
+         mcp_servers=mcp_config_dict,  # Dict, not file path!
+         allowed_tools=[...],
+         permission_mode="bypassPermissions"
+     )
+     ```
+
+3. **MCPProxy Listen Address (Docker Networking)**:
+   - **Problem**: MCPProxy defaults to `127.0.0.1` (localhost only) inside container
+   - **Impact**: Port forwarding fails - host cannot connect to containerized MCPProxy
+   - **Solution**: Use `--listen="0.0.0.0:8080"` flag to bind all interfaces
+   - **Implementation**: Add to `entrypoint.sh`:
+     ```bash
+     exec /app/mcpproxy serve \
+         --config="$MCPPROXY_CONFIG" \
+         --listen="0.0.0.0:8080"
+     ```
+
+### Transport Configuration
+
+**Correct Configuration** for `mcp_servers.json`:
+```json
+{
+  "mcpServers": {
+    "mcpproxy": {
+      "type": "http",
+      "url": "http://localhost:8081/mcp"
+    }
+  }
+}
+```
+
+**Notes**:
+- Use `type: "http"` (not "streamable-http" or "sse")
+- MCPProxy handles streamable-http protocol internally
+- SDK auto-detects protocol capabilities

@@ -12,11 +12,15 @@ from rich.console import Console
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.text import Text
+from dotenv import load_dotenv
 
 from .scenario_runner import FailureAwareScenarioRunner
 from .evaluator import TrajectoryEvaluator
 from .reporter import ReportGenerator
 from .html_reporter import HTMLReporter
+
+# Load environment variables from .env file
+load_dotenv()
 
 console = Console()
 

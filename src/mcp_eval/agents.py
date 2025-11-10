@@ -153,13 +153,37 @@ Your goal is to test MCPProxy. Only use generic tools (WebSearch, Bash) when NO 
     async def initialize_client(self):
         """Initialize ClaudeSDKClient with MCP configuration."""
         if self._client is None:
+            # Load MCP servers config as dict (SDK requires dict, not file path)
+            import json
+            from pathlib import Path
+
+            mcp_config_dict = {}
+            if self.mcp_config:
+                config_path = Path(self.mcp_config)
+                if config_path.exists():
+                    with open(config_path, 'r') as f:
+                        config_data = json.load(f)
+                        # Extract mcpServers dict from config file
+                        mcp_config_dict = config_data.get('mcpServers', {})
+
             options = ClaudeAgentOptions(
                 system_prompt=self.system_prompt,
                 max_turns=100,
-                mcp_servers=self.mcp_config,
+                mcp_servers=mcp_config_dict,  # Pass dict directly, not file path
                 permission_mode="bypassPermissions",
                 model="claude-sonnet-4-5-20250929",
-                settings="claude_settings.json"  # Contains {"temperature": 0.0}
+                settings="claude_settings.json",  # Contains {"temperature": 0.0}
+                # CRITICAL: SDK aborts connection if allowed_tools is empty/omitted
+                # List MCPProxy built-in tools to enable connection
+                allowed_tools=[
+                    "mcp__mcpproxy__retrieve_tools",
+                    "mcp__mcpproxy__call_tool",
+                    "mcp__mcpproxy__read_cache",
+                    "mcp__mcpproxy__upstream_servers",
+                    "mcp__mcpproxy__quarantine_security",
+                    "mcp__mcpproxy__search_servers",
+                    "mcp__mcpproxy__list_registries"
+                ]
             )
             self._client = ClaudeSDKClient(options=options)
 

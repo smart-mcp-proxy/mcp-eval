@@ -194,24 +194,51 @@ class FailureAwareScenarioRunner:
     
     async def _discover_tools(self) -> Dict[str, Any]:
         """Discover available tools from MCP servers."""
+        client = None
+        client_connected = False
         try:
             from claude_agent_sdk import ClaudeSDKClient
             import asyncio
-            
+            import json
+            from pathlib import Path
+
             # Wait a bit longer after Docker restart to ensure MCPProxy is fully ready
             console.print("⏳ [yellow]Waiting for MCPProxy to be fully ready for tool discovery...[/yellow]")
             await asyncio.sleep(3)
-            
+
+            # Load MCP servers config as dict (SDK requires dict, not file path)
+            mcp_config_dict = {}
+            if self.mcp_config:
+                config_path = Path(self.mcp_config)
+                if config_path.exists():
+                    with open(config_path, 'r') as f:
+                        config_data = json.load(f)
+                        mcp_config_dict = config_data.get('mcpServers', {})
+
             # Create a temporary SDK client to discover tools
             client = ClaudeSDKClient(
                 options=ClaudeAgentOptions(
-                    mcp_servers=self.mcp_config,
+                    mcp_servers=mcp_config_dict,  # Pass dict directly, not file path
                     permission_mode="bypassPermissions",
                     model="claude-sonnet-4-5-20250929",
-                    settings="claude_settings.json"  # Settings file with temperature=0.0
+                    settings="claude_settings.json",  # Settings file with temperature=0.0
+                    # CRITICAL: SDK aborts connection if allowed_tools is empty/omitted
+                    allowed_tools=[
+                        "mcp__mcpproxy__retrieve_tools",
+                        "mcp__mcpproxy__call_tool",
+                        "mcp__mcpproxy__read_cache",
+                        "mcp__mcpproxy__upstream_servers",
+                        "mcp__mcpproxy__quarantine_security",
+                        "mcp__mcpproxy__search_servers",
+                        "mcp__mcpproxy__list_registries"
+                    ]
                 )
             )
-            
+
+            # Connect the client before querying
+            await client.connect()
+            client_connected = True
+
             # Make a list_tools call to discover available tools with retry
             max_retries = 3
             for attempt in range(max_retries):
@@ -244,12 +271,16 @@ class FailureAwareScenarioRunner:
                                     tools_info["tools"].append(tool_info)
                     
                     console.print(f"✅ [green]Discovered {len(tools_info['tools'])} tools via queries[/green]")
+                    if client_connected and client:
+                        await client.disconnect()
                     return tools_info
-                    
+
                 except Exception as query_error:
                     console.print(f"⚠️  [yellow]Tool query attempt {attempt + 1} failed: {query_error}[/yellow]")
                     if attempt == max_retries - 1:  # Last attempt
                         # Return a graceful degradation - don't fail the whole scenario
+                        if client_connected and client:
+                            await client.disconnect()
                         return {
                             "discovery_method": "failed_with_retry",
                             "error": str(query_error),
@@ -260,9 +291,15 @@ class FailureAwareScenarioRunner:
                     else:
                         # Wait before retry
                         await asyncio.sleep(2)
-                
+
         except Exception as e:
             console.print(f"❌ [red]Tool discovery failed: {e}[/red]")
+            # Clean up connection if established
+            if client_connected and client:
+                try:
+                    await client.disconnect()
+                except:
+                    pass  # Ignore disconnect errors during exception handling
             # Return a graceful degradation - don't fail the whole scenario
             return {
                 "discovery_method": "error_graceful",
@@ -463,14 +500,10 @@ class FailureAwareScenarioRunner:
         console.print(f"📋 [bold]{scenario_name}[/bold]")
         console.print(f"🎯 Intent: {user_intent}")
         console.print(f"📊 Expected tools: {len(expected_trajectory)}")
-        
-        # Skip tool discovery for now due to connection issues - it's only for metadata
-        available_tools = {
-            "discovery_method": "skipped",
-            "note": "Tool discovery disabled to avoid connection issues",
-            "discovered_at": datetime.now().isoformat(),
-            "tools": []
-        }
+
+        # T046: Discover available MCP tools (FR-007d: tool availability verification)
+        # Re-enabled after Docker bash fix - has graceful degradation if discovery fails
+        available_tools = await self._discover_tools()
 
         # T044: Pre-flight validation (non-blocking)
         console.print("\n🔍 [bold cyan]Running pre-flight validation...[/bold cyan]")

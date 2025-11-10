@@ -1,7 +1,7 @@
 FROM alpine:3.19
 
 # Install runtime dependencies and Docker
-RUN apk add --no-cache ca-certificates tzdata curl jq docker docker-compose sudo
+RUN apk add --no-cache ca-certificates tzdata curl jq docker docker-compose sudo bash
 
 # Create app user for security and add to docker group
 RUN adduser -D -s /bin/sh mcpproxy && \

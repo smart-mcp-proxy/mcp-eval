@@ -271,7 +271,125 @@ class FailureAwareScenarioRunner:
                 "tools": [],
                 "note": "Tool discovery failed but scenario execution can continue"
             }
-        
+
+    def _validate_mcp_config(self) -> Tuple[bool, str]:
+        """T040: Validate MCP configuration file exists and is valid JSON.
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        try:
+            config_path = Path(self.mcp_config)
+            if not config_path.exists():
+                return False, f"Config file not found: {config_path}"
+
+            # Validate JSON structure
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+
+            # T041: Verify mcpServers.mcpproxy.url points to port 8081
+            mcp_servers = config.get('mcpServers', {})
+            mcpproxy_config = mcp_servers.get('mcpproxy', {})
+            url = mcpproxy_config.get('url', '')
+
+            if 'localhost:8081' not in url and '127.0.0.1:8081' not in url:
+                return False, f"MCPProxy URL should point to port 8081, found: {url}"
+
+            return True, ""
+
+        except json.JSONDecodeError as e:
+            return False, f"Invalid JSON in config file: {e}"
+        except Exception as e:
+            return False, f"Config validation error: {e}"
+
+    def _check_container_health(self) -> Tuple[bool, str]:
+        """T042-T043: Check if MCPProxy Docker container is running and healthy.
+
+        Returns:
+            Tuple of (is_healthy, status_message)
+        """
+        import subprocess
+
+        try:
+            # Check if container is running
+            result = subprocess.run(
+                ['docker', 'ps', '--filter', 'name=mcpproxy-test-test777-dind', '--format', '{{.Names}}'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+
+            if 'mcpproxy-test-test777-dind' not in result.stdout:
+                return False, "MCPProxy container not running"
+
+            # Check health endpoint using docker exec curl (internal check)
+            result = subprocess.run(
+                ['docker', 'exec', 'mcpproxy-test-test777-dind',
+                 'curl', '-s', '-f', 'http://localhost:8080/health'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+
+            if result.returncode == 0 and '"status":"ok"' in result.stdout:
+                return True, "MCPProxy healthy"
+            else:
+                return False, f"Health check failed: {result.stderr or 'No response'}"
+
+        except subprocess.TimeoutExpired:
+            return False, "Container health check timed out"
+        except Exception as e:
+            return False, f"Container health check error: {e}"
+
+    def _pre_flight_validation(self) -> Dict[str, Any]:
+        """T044-T046: Pre-flight validation with graceful degradation.
+
+        Validates MCP configuration and container health before scenario execution.
+        Logs warnings but allows execution to continue (non-blocking).
+
+        Returns:
+            Dict with validation results for logging
+        """
+        validation_results = {
+            "timestamp": datetime.now().isoformat(),
+            "config_valid": False,
+            "container_healthy": False,
+            "config_path": str(Path(self.mcp_config).absolute()),
+            "container_name": "mcpproxy-test-test777-dind",
+            "health_endpoint": "http://localhost:8081/health",
+            "warnings": []
+        }
+
+        # Validate config
+        config_valid, config_msg = self._validate_mcp_config()
+        validation_results["config_valid"] = config_valid
+        validation_results["config_message"] = config_msg
+
+        if not config_valid:
+            warning = f"⚠️  MCP config validation failed: {config_msg}"
+            console.print(f"[yellow]{warning}[/yellow]")
+            validation_results["warnings"].append(warning)
+        else:
+            console.print(f"✓ [green]MCP config valid[/green]")
+
+        # Check container health
+        container_healthy, health_msg = self._check_container_health()
+        validation_results["container_healthy"] = container_healthy
+        validation_results["health_message"] = health_msg
+
+        if not container_healthy:
+            warning = f"⚠️  MCPProxy container health check failed: {health_msg}"
+            console.print(f"[yellow]{warning}[/yellow]")
+            validation_results["warnings"].append(warning)
+        else:
+            console.print(f"✓ [green]MCPProxy container healthy[/green]")
+
+        # T045: Graceful degradation - log warnings but continue
+        if validation_results["warnings"]:
+            console.print("[yellow]⚠️  Pre-flight validation issues detected, continuing with execution...[/yellow]")
+
+        return validation_results
+
     async def execute_scenario(
         self, 
         scenario_file: Path, 
@@ -353,7 +471,11 @@ class FailureAwareScenarioRunner:
             "discovered_at": datetime.now().isoformat(),
             "tools": []
         }
-        
+
+        # T044: Pre-flight validation (non-blocking)
+        console.print("\n🔍 [bold cyan]Running pre-flight validation...[/bold cyan]")
+        validation_results = self._pre_flight_validation()
+
         # Execute with enhanced tracking
         execution_data = {
             "scenario": scenario_name,
@@ -368,7 +490,8 @@ class FailureAwareScenarioRunner:
             "execution_status": "UNKNOWN",
             "failure_analysis": {},
             "early_stopped": False,
-            "mcpproxy_git_info": self.mcpproxy_git_info
+            "mcpproxy_git_info": self.mcpproxy_git_info,
+            "mcp_validation": validation_results  # T046: Add validation results to metadata
         }
         
         try:

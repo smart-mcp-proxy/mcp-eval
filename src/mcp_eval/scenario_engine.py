@@ -8,7 +8,7 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
-from claude_code_sdk import ClaudeSDKClient, ClaudeCodeOptions
+from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 from contextlib import asynccontextmanager
 
 import sys
@@ -38,8 +38,14 @@ class ScenarioResult:
     execution_time: float
     detailed_log: Dict[str, Any]
     dialog_trajectory: str
-    tool_calls: List[ToolCallRecord]
+    tool_calls: List[ToolCallRecord]  # DEPRECATED - kept for backward compatibility
+    dialog_turns: List = None  # NEW - Constitution-compliant DialogTurn list
     error: Optional[str] = None
+
+    def __post_init__(self):
+        """Initialize dialog_turns as empty list if None."""
+        if self.dialog_turns is None:
+            self.dialog_turns = []
 
 
 class ScenarioEngine:

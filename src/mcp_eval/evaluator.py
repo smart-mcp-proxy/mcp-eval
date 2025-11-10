@@ -134,24 +134,29 @@ class TrajectoryEvaluator:
         }
     
     def compare_executions(
-        self, 
-        current_log: Dict[str, Any], 
+        self,
+        current_log: Dict[str, Any],
         baseline_log: Dict[str, Any]
     ) -> ComparisonResult:
         """
         Compare current execution against baseline with failure-aware analysis.
-        
+
         Args:
             current_log: Detailed log from current execution
             baseline_log: Detailed log from baseline execution
-            
+
         Returns:
             ComparisonResult with detailed comparison metrics and failure analysis
         """
+        # Check for API key error in current execution
+        current_exec_status = current_log.get("execution_status", "")
+        if current_exec_status == "API_ERROR":
+            return self._create_api_error_comparison_result(current_log, baseline_log)
+
         # Extract tool calls and analyze failures
         current_tools = current_log.get("tool_calls_summary", [])
         baseline_tools = baseline_log.get("tool_calls_summary", [])
-        
+
         # Analyze execution status and failure patterns
         current_analysis = self._analyze_execution_status(current_tools)
         baseline_analysis = self._analyze_execution_status(baseline_tools)
@@ -376,32 +381,32 @@ class TrajectoryEvaluator:
         failures = set()
         blocking_step = None
         early_stopped = False
-        
+
         for i, tool_call in enumerate(tool_calls):
             # Check for explicit errors
             if tool_call.get("error") or (tool_call.get("response", {}).get("is_error")):
                 operation = tool_call.get("tool_input", {}).get("operation", "")
                 tool_name = tool_call.get("tool_name", "")
-                
+
                 failure_type = f"{tool_name}:{operation}" if operation else tool_name
                 failures.add(failure_type)
-                
+
                 # Check if this is a critical operation that blocks subsequent execution
                 if any(critical_op in operation.lower() for critical_op in self.critical_operations):
                     blocking_step = i
                     early_stopped = True
                     break
-        
+
         # Determine overall execution status
         if early_stopped and blocking_step is not None:
             status = "BLOCKED"
         elif failures:
             status = "FAILED"
         elif len(tool_calls) == 0:
-            status = "EMPTY"
+            status = "NO_TOOLS_EXECUTED"  # Changed from "EMPTY" to be more explicit
         else:
             status = "SUCCESS"
-        
+
         return {
             "status": status,
             "failures": failures,
@@ -410,9 +415,51 @@ class TrajectoryEvaluator:
             "total_tools": len(tool_calls)
         }
     
+    def _create_api_error_comparison_result(
+        self,
+        current_log: Dict[str, Any],
+        baseline_log: Dict[str, Any]
+    ) -> ComparisonResult:
+        """Create comparison result for API key error."""
+        baseline_tools = baseline_log.get("tool_calls_summary", [])
+
+        failure_analysis = {
+            "execution_error": True,
+            "error_type": "API_ERROR",
+            "error_message": "Invalid API key - execution aborted before any tool calls",
+            "baseline_succeeded": baseline_log.get("execution_status") == "SUCCESS",
+            "severity": "CRITICAL"
+        }
+
+        detailed_comparison = {
+            "trajectory_matches": 0.0,
+            "current_tool_count": 0,
+            "baseline_tool_count": len(baseline_tools),
+            "execution_status_comparison": {
+                "current": "API_ERROR",
+                "baseline": baseline_log.get("execution_status", "UNKNOWN"),
+                "error": "Invalid API key"
+            },
+            "timestamp": datetime.now().isoformat()
+        }
+
+        return ComparisonResult(
+            overall_score=0.0,  # API error = complete failure
+            tool_trajectory_score=0.0,
+            per_invocation_results=[],
+            execution_time_diff=0.0,
+            tool_count_diff=-len(baseline_tools),
+            success_status_match=False,
+            detailed_comparison=detailed_comparison,
+            execution_status="API_ERROR",
+            failure_analysis=failure_analysis,
+            early_stopped=True,
+            blocking_failure_step=None
+        )
+
     def _create_blocked_comparison_result(
-        self, 
-        current_log: Dict[str, Any], 
+        self,
+        current_log: Dict[str, Any],
         baseline_log: Dict[str, Any],
         current_analysis: Dict[str, Any],
         baseline_analysis: Dict[str, Any]
@@ -519,7 +566,11 @@ class TrajectoryEvaluator:
         """Calculate overall score with failure awareness."""
         current_status = current_analysis["status"]
         baseline_status = baseline_analysis["status"]
-        
+
+        # Handle API errors and no tools executed - always return 0.0
+        if current_status in ("API_ERROR", "NO_TOOLS_EXECUTED"):
+            return 0.0  # Critical failure - no execution occurred
+
         # Handle different status combinations
         if current_status == "BLOCKED":
             if baseline_status == "SUCCESS":
@@ -528,7 +579,7 @@ class TrajectoryEvaluator:
                 return 0.3  # Both blocked, some partial credit for consistency
             else:
                 return 0.1  # Current worse than baseline
-        
+
         elif current_status == "FAILED":
             if baseline_status == "SUCCESS":
                 return max(0.0, trajectory_score * 0.5)  # Significant regression
@@ -536,7 +587,7 @@ class TrajectoryEvaluator:
                 return trajectory_score * 0.7  # Both failed, compare trajectories
             else:
                 return trajectory_score * 0.6
-        
+
         elif current_status == "SUCCESS":
             if baseline_status == "SUCCESS":
                 # Both successful - use trajectory score with bonuses
@@ -547,6 +598,6 @@ class TrajectoryEvaluator:
             else:
                 # Current success, baseline failed - improvement!
                 return min(1.0, trajectory_score + 0.2)
-        
-        # Fallback to basic trajectory score
-        return max(0.0, min(1.0, trajectory_score))
+
+        # Fallback - if status is unknown/unexpected, return 0
+        return 0.0

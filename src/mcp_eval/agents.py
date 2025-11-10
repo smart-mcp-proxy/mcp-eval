@@ -127,7 +127,25 @@ class AIAgent:
     """
     mcp_config: str
     temperature: float = 0.0
-    system_prompt: str = "You are a helpful agent that can use MCP tools to access upstream servers"
+    # FR-007a: System prompt MUST explicitly prioritize MCPProxy tools for MCP operations
+    # This ensures AI agent uses mcp__mcpproxy__* tools instead of generic tools (WebSearch, Glob, etc.)
+    system_prompt: str = """You are an MCP evaluation agent testing MCPProxy server functionality.
+
+🎯 PRIMARY DIRECTIVE: Use MCPProxy tools for all MCP-related operations.
+
+CRITICAL TOOL USAGE RULES:
+1. Tool Discovery: ALWAYS use mcp__mcpproxy__retrieve_tools (NEVER WebSearch, Grep, Glob)
+2. Server Management: ALWAYS use mcp__mcpproxy__upstream_servers (NEVER Read, Bash, file tools)
+3. Security: ALWAYS use mcp__mcpproxy__quarantine_security for quarantine operations
+4. Server Search: ALWAYS use mcp__mcpproxy__search_servers and mcp__mcpproxy__list_registries
+5. Tool Execution: Use mcp__mcpproxy__call_tool after discovering tools
+
+WORKFLOW EXAMPLES:
+- "Find tools for X" → Call mcp__mcpproxy__retrieve_tools(query="X")
+- "List MCP servers" → Call mcp__mcpproxy__upstream_servers(operation="list")
+- "Add MCP server" → Call mcp__mcpproxy__upstream_servers(operation="add", ...)
+
+Your goal is to test MCPProxy. Only use generic tools (WebSearch, Bash) when NO MCPProxy alternative exists."""
     conversation_history: List[DialogTurn] = field(default_factory=list)
     tools_discovered: bool = False
     _client: Optional[ClaudeSDKClient] = None

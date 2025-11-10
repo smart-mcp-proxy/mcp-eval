@@ -89,7 +89,10 @@ src/mcp_eval/
 │                          #   - Add CSS: .turn-added, .turn-removed, .turn-modified
 ├── dialog_models.py       # ✅ READ-ONLY: DialogTurn structure reference
 ├── dialog_session.py      # ✅ READ-ONLY: Session execution flow
-├── agents.py              # ✅ READ-ONLY: Agent turn generation
+├── agents.py              # ✏️ MODIFY: Update AIAgent system prompt
+│                          #   - Modify: system_prompt to prioritize MCPProxy tools
+│                          #   - Add explicit instructions for mcp__mcpproxy__* tools
+│                          #   - Ensure agent uses MCPProxy for tool discovery/server management
 ├── scenario_runner.py     # ✏️ MODIFY: Add MCP validation
 │                          #   - New: _validate_mcp_config()
 │                          #   - New: _check_container_health()

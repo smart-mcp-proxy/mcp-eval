@@ -52,6 +52,8 @@ The AI agent role in the dialog engine must be able to discover and invoke MCP t
 1. **Given** MCPProxy is running with upstream servers configured, **When** AI agent attempts to discover available MCP tools, **Then** tool discovery succeeds without container errors
 2. **Given** available MCP tools are discovered, **When** AI agent invokes an MCP tool, **Then** the tool executes successfully and returns results
 3. **Given** MCPProxy container is properly configured, **When** checking container health, **Then** no "/bin/bash missing" errors appear in logs
+4. **Given** a scenario requests MCP tool functionality (e.g., "Find tools for file operations"), **When** AI agent processes the request, **Then** the agent MUST use MCPProxy tools (e.g., `mcp__mcpproxy__retrieve_tools`) instead of generic tools (e.g., WebSearch, Glob)
+5. **Given** AI agent system prompt configuration, **When** agent is initialized, **Then** system prompt explicitly instructs agent to prioritize MCPProxy tools for MCP-related tasks
 
 ---
 
@@ -89,6 +91,9 @@ Evaluation engineers need to compare dialog turns between baseline and evaluatio
 - **FR-005**: MCPProxy container MUST include required shell dependencies to execute upstream server connections
 - **FR-006**: AI Agent MUST successfully discover MCP tools from MCPProxy without container execution errors
 - **FR-007**: AI Agent MUST be able to invoke discovered MCP tools and receive results
+- **FR-007a**: AI Agent system prompt MUST explicitly instruct the agent to prioritize using MCPProxy tools (mcp__mcpproxy__*) for tool discovery, server management, and MCP-related operations
+- **FR-007b**: AI Agent MUST use `mcp__mcpproxy__retrieve_tools` when asked to find/search/discover tools, instead of using generic search tools like WebSearch or Glob
+- **FR-007c**: AI Agent MUST use `mcp__mcpproxy__upstream_servers` when asked to list/view MCP servers, instead of using file system tools
 - **FR-008**: HTML report generator MUST read `dialog_turns` field from detailed_log.json when present
 - **FR-009**: HTML report generator MUST fall back to legacy `tool_calls_summary` field if `dialog_turns` is empty
 - **FR-010**: HTML reports MUST provide visual indicators for successful vs. failed tool executions
@@ -108,7 +113,7 @@ Evaluation engineers need to compare dialog turns between baseline and evaluatio
 
 - **SC-001**: HTML reports display complete dialog turn history for 100% of executed scenarios
 - **SC-002**: Users can identify all MCP tool invocations in HTML reports within 30 seconds of opening
-- **SC-003**: AI agent successfully invokes MCP tools in 95% of scenarios without container errors
+- **SC-003**: AI agent successfully invokes MCP tools in 95% of scenarios without container errors, and uses MCPProxy tools (mcp__mcpproxy__*) instead of generic tools when scenarios request MCP-related functionality
 - **SC-004**: MCPProxy container starts without shell-related errors in 100% of deployments
 - **SC-005**: Evaluation engineers can compare dialog trajectories between runs and identify behavioral differences within 2 minutes
 - **SC-006**: HTML reports load and render completely for sessions with up to 200 dialog turns without performance issues

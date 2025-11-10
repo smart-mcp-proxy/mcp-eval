@@ -535,10 +535,11 @@ class FailureAwareScenarioRunner:
         )
 
         # Create AI Agent (has MCP access)
+        # System prompt defined in agents.py (FR-007a) - prioritizes MCPProxy tools
         ai_agent = AIAgent(
             mcp_config=self.mcp_config,
-            temperature=0.0,
-            system_prompt="You are a helpful agent that can use MCP tools to access upstream servers. Execute tasks step by step and provide clear explanations."
+            temperature=0.0
+            # system_prompt uses default from AIAgent class (prioritizes mcp__mcpproxy__* tools)
         )
 
         # Create DialogSession to orchestrate interaction

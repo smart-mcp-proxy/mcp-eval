@@ -248,7 +248,11 @@ class FailureAwareScenarioRunner:
                     response = await client.query(
                         "List all available MCP tools and their descriptions"
                     )
-                    
+
+                    # Check if response is None
+                    if response is None:
+                        raise ValueError("client.query() returned None - connection may have failed")
+
                     # Parse the response to extract tool information
                     tools_info = {
                         "discovery_method": "claude_query",
@@ -256,20 +260,21 @@ class FailureAwareScenarioRunner:
                         "discovered_at": datetime.now().isoformat(),
                         "tools": []
                     }
-                    
+
                     # Try to extract structured tool information from messages
-                    for message in response.messages:
-                        if hasattr(message, 'content'):
-                            for block in message.content:
-                                if hasattr(block, 'name') and hasattr(block, 'id'):  # Tool use block
-                                    tool_info = {
-                                        "name": block.name,
-                                        "id": block.id,
-                                        "input": getattr(block, 'input', {}),
-                                        "discovered_via": "tool_call"
-                                    }
-                                    tools_info["tools"].append(tool_info)
-                    
+                    if hasattr(response, 'messages') and response.messages:
+                        for message in response.messages:
+                            if hasattr(message, 'content'):
+                                for block in message.content:
+                                    if hasattr(block, 'name') and hasattr(block, 'id'):  # Tool use block
+                                        tool_info = {
+                                            "name": block.name,
+                                            "id": block.id,
+                                            "input": getattr(block, 'input', {}),
+                                            "discovered_via": "tool_call"
+                                        }
+                                        tools_info["tools"].append(tool_info)
+
                     console.print(f"✅ [green]Discovered {len(tools_info['tools'])} tools via queries[/green]")
                     if client_connected and client:
                         await client.disconnect()

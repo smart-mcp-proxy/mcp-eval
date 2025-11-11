@@ -192,6 +192,47 @@ AGENT: Here are the available GitHub tools: [lists tools with descriptions]
 EVALUATION: ✅ SUCCESS - Found expected GitHub tools
 ```
 
+**HTML Reports**:
+
+The system generates interactive HTML reports for both baseline recordings and comparisons, featuring:
+
+1. **Dialog Turn Visualization**: Full conversation history with all dialog turns including:
+   - User messages with timestamps
+   - AI agent responses
+   - Tool calls with parameters
+   - Tool results with success/error status
+   - Clarification requests and responses
+
+   Example: A baseline HTML report shows the complete conversation:
+   ```
+   👤 User (18:28:35): Find tools for file operations
+   🤖 Assistant (18:28:48): I can help you find the tools available for file operations...
+   [Full conversation with all turns visible]
+   ```
+
+2. **MCP Tools Display**: Dedicated section showing all MCP proxy tool invocations:
+   - Tool name and operation type
+   - Input parameters
+   - Execution status (success/error)
+   - Response summaries
+   - Filtering controls to show/hide framework tools
+
+3. **Dialog Turn Comparison** (comparison reports only): Side-by-side diff view of conversations:
+   - Color-coded changes: green (added), red (removed), yellow (modified), gray (unchanged)
+   - Character-level diff highlighting within modified turns
+   - Interactive filters to show/hide specific change types
+   - Summary statistics (e.g., "21 Added, 0 Removed, 5 Modified, 0 Unchanged")
+
+4. **Similarity Analysis** (comparison reports only): Visual breakdown of trajectory matching:
+   - Overall similarity score with color-coded badge
+   - Per-invocation comparison with individual scores
+   - Tool parameter similarity analysis
+   - Failure-aware scoring for blocked operations
+
+HTML reports are saved to the `reports/` directory with timestamped filenames:
+- Baseline: `reports/{scenario}_baseline_{timestamp}.html`
+- Comparison: `reports/{scenario}_comparison_{timestamp}.html`
+
 ### Evaluation Metrics
 
 Advanced similarity-based trajectory evaluation with multi-level scoring:
@@ -215,7 +256,7 @@ Advanced similarity-based trajectory evaluation with multi-level scoring:
 
 ```toml
 [dependencies]
-claude_code_sdk = "*"
+claude-agent-sdk = ">=0.1.6"  # Updated from deprecated claude-code-sdk
 click = "^8.1.0"
 pydantic = "^2.0.0"
 pyyaml = "^6.0"

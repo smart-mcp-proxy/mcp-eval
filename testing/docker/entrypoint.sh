@@ -39,7 +39,8 @@ jq -r '.security.quarantine | "  Quarantine: " + (.enabled | tostring)' "$MCPPRO
 
 # Start the MCP proxy
 echo "🎯 Starting MCP Proxy..."
-exec /app/mcpproxy \
+exec /app/mcpproxy serve \
     --config="$MCPPROXY_CONFIG" \
     --log-level="$MCPPROXY_LOG_LEVEL" \
-    --data-dir="$MCPPROXY_DATA_DIR"
+    --data-dir="$MCPPROXY_DATA_DIR" \
+    --listen="0.0.0.0:8080"

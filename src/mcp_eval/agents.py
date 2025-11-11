@@ -127,7 +127,25 @@ class AIAgent:
     """
     mcp_config: str
     temperature: float = 0.0
-    system_prompt: str = "You are a helpful agent that can use MCP tools to access upstream servers"
+    # FR-007a: System prompt MUST explicitly prioritize MCPProxy tools for MCP operations
+    # This ensures AI agent uses mcp__mcpproxy__* tools instead of generic tools (WebSearch, Glob, etc.)
+    system_prompt: str = """You are an MCP evaluation agent testing MCPProxy server functionality.
+
+🎯 PRIMARY DIRECTIVE: Use MCPProxy tools for all MCP-related operations.
+
+CRITICAL TOOL USAGE RULES:
+1. Tool Discovery: ALWAYS use mcp__mcpproxy__retrieve_tools (NEVER WebSearch, Grep, Glob)
+2. Server Management: ALWAYS use mcp__mcpproxy__upstream_servers (NEVER Read, Bash, file tools)
+3. Security: ALWAYS use mcp__mcpproxy__quarantine_security for quarantine operations
+4. Server Search: ALWAYS use mcp__mcpproxy__search_servers and mcp__mcpproxy__list_registries
+5. Tool Execution: Use mcp__mcpproxy__call_tool after discovering tools
+
+WORKFLOW EXAMPLES:
+- "Find tools for X" → Call mcp__mcpproxy__retrieve_tools(query="X")
+- "List MCP servers" → Call mcp__mcpproxy__upstream_servers(operation="list")
+- "Add MCP server" → Call mcp__mcpproxy__upstream_servers(operation="add", ...)
+
+Your goal is to test MCPProxy. Only use generic tools (WebSearch, Bash) when NO MCPProxy alternative exists."""
     conversation_history: List[DialogTurn] = field(default_factory=list)
     tools_discovered: bool = False
     _client: Optional[ClaudeSDKClient] = None
@@ -135,13 +153,37 @@ class AIAgent:
     async def initialize_client(self):
         """Initialize ClaudeSDKClient with MCP configuration."""
         if self._client is None:
+            # Load MCP servers config as dict (SDK requires dict, not file path)
+            import json
+            from pathlib import Path
+
+            mcp_config_dict = {}
+            if self.mcp_config:
+                config_path = Path(self.mcp_config)
+                if config_path.exists():
+                    with open(config_path, 'r') as f:
+                        config_data = json.load(f)
+                        # Extract mcpServers dict from config file
+                        mcp_config_dict = config_data.get('mcpServers', {})
+
             options = ClaudeAgentOptions(
                 system_prompt=self.system_prompt,
                 max_turns=100,
-                mcp_servers=self.mcp_config,
+                mcp_servers=mcp_config_dict,  # Pass dict directly, not file path
                 permission_mode="bypassPermissions",
                 model="claude-sonnet-4-5-20250929",
-                settings="claude_settings.json"  # Contains {"temperature": 0.0}
+                settings="claude_settings.json",  # Contains {"temperature": 0.0}
+                # CRITICAL: SDK aborts connection if allowed_tools is empty/omitted
+                # List MCPProxy built-in tools to enable connection
+                allowed_tools=[
+                    "mcp__mcpproxy__retrieve_tools",
+                    "mcp__mcpproxy__call_tool",
+                    "mcp__mcpproxy__read_cache",
+                    "mcp__mcpproxy__upstream_servers",
+                    "mcp__mcpproxy__quarantine_security",
+                    "mcp__mcpproxy__search_servers",
+                    "mcp__mcpproxy__list_registries"
+                ]
             )
             self._client = ClaudeSDKClient(options=options)
 

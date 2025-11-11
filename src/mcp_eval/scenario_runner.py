@@ -194,24 +194,51 @@ class FailureAwareScenarioRunner:
     
     async def _discover_tools(self) -> Dict[str, Any]:
         """Discover available tools from MCP servers."""
+        client = None
+        client_connected = False
         try:
             from claude_agent_sdk import ClaudeSDKClient
             import asyncio
-            
+            import json
+            from pathlib import Path
+
             # Wait a bit longer after Docker restart to ensure MCPProxy is fully ready
             console.print("⏳ [yellow]Waiting for MCPProxy to be fully ready for tool discovery...[/yellow]")
             await asyncio.sleep(3)
-            
+
+            # Load MCP servers config as dict (SDK requires dict, not file path)
+            mcp_config_dict = {}
+            if self.mcp_config:
+                config_path = Path(self.mcp_config)
+                if config_path.exists():
+                    with open(config_path, 'r') as f:
+                        config_data = json.load(f)
+                        mcp_config_dict = config_data.get('mcpServers', {})
+
             # Create a temporary SDK client to discover tools
             client = ClaudeSDKClient(
                 options=ClaudeAgentOptions(
-                    mcp_servers=self.mcp_config,
+                    mcp_servers=mcp_config_dict,  # Pass dict directly, not file path
                     permission_mode="bypassPermissions",
                     model="claude-sonnet-4-5-20250929",
-                    settings="claude_settings.json"  # Settings file with temperature=0.0
+                    settings="claude_settings.json",  # Settings file with temperature=0.0
+                    # CRITICAL: SDK aborts connection if allowed_tools is empty/omitted
+                    allowed_tools=[
+                        "mcp__mcpproxy__retrieve_tools",
+                        "mcp__mcpproxy__call_tool",
+                        "mcp__mcpproxy__read_cache",
+                        "mcp__mcpproxy__upstream_servers",
+                        "mcp__mcpproxy__quarantine_security",
+                        "mcp__mcpproxy__search_servers",
+                        "mcp__mcpproxy__list_registries"
+                    ]
                 )
             )
-            
+
+            # Connect the client before querying
+            await client.connect()
+            client_connected = True
+
             # Make a list_tools call to discover available tools with retry
             max_retries = 3
             for attempt in range(max_retries):
@@ -244,12 +271,16 @@ class FailureAwareScenarioRunner:
                                     tools_info["tools"].append(tool_info)
                     
                     console.print(f"✅ [green]Discovered {len(tools_info['tools'])} tools via queries[/green]")
+                    if client_connected and client:
+                        await client.disconnect()
                     return tools_info
-                    
+
                 except Exception as query_error:
                     console.print(f"⚠️  [yellow]Tool query attempt {attempt + 1} failed: {query_error}[/yellow]")
                     if attempt == max_retries - 1:  # Last attempt
                         # Return a graceful degradation - don't fail the whole scenario
+                        if client_connected and client:
+                            await client.disconnect()
                         return {
                             "discovery_method": "failed_with_retry",
                             "error": str(query_error),
@@ -260,9 +291,15 @@ class FailureAwareScenarioRunner:
                     else:
                         # Wait before retry
                         await asyncio.sleep(2)
-                
+
         except Exception as e:
             console.print(f"❌ [red]Tool discovery failed: {e}[/red]")
+            # Clean up connection if established
+            if client_connected and client:
+                try:
+                    await client.disconnect()
+                except:
+                    pass  # Ignore disconnect errors during exception handling
             # Return a graceful degradation - don't fail the whole scenario
             return {
                 "discovery_method": "error_graceful",
@@ -271,7 +308,125 @@ class FailureAwareScenarioRunner:
                 "tools": [],
                 "note": "Tool discovery failed but scenario execution can continue"
             }
-        
+
+    def _validate_mcp_config(self) -> Tuple[bool, str]:
+        """T040: Validate MCP configuration file exists and is valid JSON.
+
+        Returns:
+            Tuple of (is_valid, error_message)
+        """
+        try:
+            config_path = Path(self.mcp_config)
+            if not config_path.exists():
+                return False, f"Config file not found: {config_path}"
+
+            # Validate JSON structure
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+
+            # T041: Verify mcpServers.mcpproxy.url points to port 8081
+            mcp_servers = config.get('mcpServers', {})
+            mcpproxy_config = mcp_servers.get('mcpproxy', {})
+            url = mcpproxy_config.get('url', '')
+
+            if 'localhost:8081' not in url and '127.0.0.1:8081' not in url:
+                return False, f"MCPProxy URL should point to port 8081, found: {url}"
+
+            return True, ""
+
+        except json.JSONDecodeError as e:
+            return False, f"Invalid JSON in config file: {e}"
+        except Exception as e:
+            return False, f"Config validation error: {e}"
+
+    def _check_container_health(self) -> Tuple[bool, str]:
+        """T042-T043: Check if MCPProxy Docker container is running and healthy.
+
+        Returns:
+            Tuple of (is_healthy, status_message)
+        """
+        import subprocess
+
+        try:
+            # Check if container is running
+            result = subprocess.run(
+                ['docker', 'ps', '--filter', 'name=mcpproxy-test-test777-dind', '--format', '{{.Names}}'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+
+            if 'mcpproxy-test-test777-dind' not in result.stdout:
+                return False, "MCPProxy container not running"
+
+            # Check health endpoint using docker exec curl (internal check)
+            result = subprocess.run(
+                ['docker', 'exec', 'mcpproxy-test-test777-dind',
+                 'curl', '-s', '-f', 'http://localhost:8080/health'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+
+            if result.returncode == 0 and '"status":"ok"' in result.stdout:
+                return True, "MCPProxy healthy"
+            else:
+                return False, f"Health check failed: {result.stderr or 'No response'}"
+
+        except subprocess.TimeoutExpired:
+            return False, "Container health check timed out"
+        except Exception as e:
+            return False, f"Container health check error: {e}"
+
+    def _pre_flight_validation(self) -> Dict[str, Any]:
+        """T044-T046: Pre-flight validation with graceful degradation.
+
+        Validates MCP configuration and container health before scenario execution.
+        Logs warnings but allows execution to continue (non-blocking).
+
+        Returns:
+            Dict with validation results for logging
+        """
+        validation_results = {
+            "timestamp": datetime.now().isoformat(),
+            "config_valid": False,
+            "container_healthy": False,
+            "config_path": str(Path(self.mcp_config).absolute()),
+            "container_name": "mcpproxy-test-test777-dind",
+            "health_endpoint": "http://localhost:8081/health",
+            "warnings": []
+        }
+
+        # Validate config
+        config_valid, config_msg = self._validate_mcp_config()
+        validation_results["config_valid"] = config_valid
+        validation_results["config_message"] = config_msg
+
+        if not config_valid:
+            warning = f"⚠️  MCP config validation failed: {config_msg}"
+            console.print(f"[yellow]{warning}[/yellow]")
+            validation_results["warnings"].append(warning)
+        else:
+            console.print(f"✓ [green]MCP config valid[/green]")
+
+        # Check container health
+        container_healthy, health_msg = self._check_container_health()
+        validation_results["container_healthy"] = container_healthy
+        validation_results["health_message"] = health_msg
+
+        if not container_healthy:
+            warning = f"⚠️  MCPProxy container health check failed: {health_msg}"
+            console.print(f"[yellow]{warning}[/yellow]")
+            validation_results["warnings"].append(warning)
+        else:
+            console.print(f"✓ [green]MCPProxy container healthy[/green]")
+
+        # T045: Graceful degradation - log warnings but continue
+        if validation_results["warnings"]:
+            console.print("[yellow]⚠️  Pre-flight validation issues detected, continuing with execution...[/yellow]")
+
+        return validation_results
+
     async def execute_scenario(
         self, 
         scenario_file: Path, 
@@ -345,15 +500,15 @@ class FailureAwareScenarioRunner:
         console.print(f"📋 [bold]{scenario_name}[/bold]")
         console.print(f"🎯 Intent: {user_intent}")
         console.print(f"📊 Expected tools: {len(expected_trajectory)}")
-        
-        # Skip tool discovery for now due to connection issues - it's only for metadata
-        available_tools = {
-            "discovery_method": "skipped",
-            "note": "Tool discovery disabled to avoid connection issues",
-            "discovered_at": datetime.now().isoformat(),
-            "tools": []
-        }
-        
+
+        # T046: Discover available MCP tools (FR-007d: tool availability verification)
+        # Re-enabled after Docker bash fix - has graceful degradation if discovery fails
+        available_tools = await self._discover_tools()
+
+        # T044: Pre-flight validation (non-blocking)
+        console.print("\n🔍 [bold cyan]Running pre-flight validation...[/bold cyan]")
+        validation_results = self._pre_flight_validation()
+
         # Execute with enhanced tracking
         execution_data = {
             "scenario": scenario_name,
@@ -368,7 +523,8 @@ class FailureAwareScenarioRunner:
             "execution_status": "UNKNOWN",
             "failure_analysis": {},
             "early_stopped": False,
-            "mcpproxy_git_info": self.mcpproxy_git_info
+            "mcpproxy_git_info": self.mcpproxy_git_info,
+            "mcp_validation": validation_results  # T046: Add validation results to metadata
         }
         
         try:
@@ -412,10 +568,11 @@ class FailureAwareScenarioRunner:
         )
 
         # Create AI Agent (has MCP access)
+        # System prompt defined in agents.py (FR-007a) - prioritizes MCPProxy tools
         ai_agent = AIAgent(
             mcp_config=self.mcp_config,
-            temperature=0.0,
-            system_prompt="You are a helpful agent that can use MCP tools to access upstream servers. Execute tasks step by step and provide clear explanations."
+            temperature=0.0
+            # system_prompt uses default from AIAgent class (prioritizes mcp__mcpproxy__* tools)
         )
 
         # Create DialogSession to orchestrate interaction

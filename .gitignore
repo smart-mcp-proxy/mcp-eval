@@ -61,3 +61,19 @@ reports/
 baselines/
 compare_results/baselines/
 comparison_results/
+
+# MCPProxy Docker
+testing/docker/mcpproxy
+testing/docker/config-template.json
+
+# Test files
+*.backup.*
+call_upstream_servers.py
+list_servers.py
+list_upstream_servers.py
+test_list_servers.py
+
+# Project-specific
+.claude/
+.specify/
+.mcp.json

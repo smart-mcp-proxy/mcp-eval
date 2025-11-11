@@ -2573,3 +2573,352 @@ function toggleDiffFilter(filterType) {
 }
 </script>
         """
+
+# ============================================================================
+# Summary Report Generation Functions
+# ============================================================================
+
+def _get_status_color(status: 'ScenarioStatus') -> str:
+    """Get Bootstrap color hex value for status badge.
+    
+    Args:
+        status: ScenarioStatus enum value
+        
+    Returns:
+        Hex color string (e.g., "#28a745")
+    """
+    from mcp_eval.summary_models import ScenarioStatus
+    
+    colors = {
+        ScenarioStatus.PASSED: "#28a745",   # Green
+        ScenarioStatus.FAILED: "#dc3545",   # Red
+        ScenarioStatus.RECORDED: "#007bff", # Blue
+        ScenarioStatus.ERROR: "#ffc107"     # Yellow
+    }
+    return colors[status]
+
+
+def _truncate_intent(intent: str, max_length: int = 60) -> tuple[str, str]:
+    """Truncate intent string for display with tooltip.
+    
+    Args:
+        intent: Full intent text
+        max_length: Maximum length before truncation (default 60)
+        
+    Returns:
+        Tuple of (display_text, full_text) where display_text is truncated
+        with "..." if needed, and full_text is the original
+    """
+    if len(intent) <= max_length:
+        return (intent, intent)
+    return (intent[:max_length] + "...", intent)
+
+
+def _format_duration(seconds: float) -> str:
+    """Format duration in seconds to display string.
+    
+    Args:
+        seconds: Duration in seconds
+        
+    Returns:
+        Formatted string like "12.3s"
+    """
+    return f"{seconds:.1f}s"
+
+
+def _format_similarity(score: Optional[float]) -> str:
+    """Format similarity score for display.
+    
+    Args:
+        score: Similarity score between 0.0 and 1.0, or None
+        
+    Returns:
+        Formatted string like "0.92" or "N/A" if score is None
+    """
+    if score is None:
+        return "N/A"
+    return f"{score:.2f}"
+
+
+def generate_summary_report(test_run: 'TestRunSummary') -> str:
+    """Generate aggregated HTML summary report for multi-scenario test run.
+    
+    Args:
+        test_run: TestRunSummary containing all scenario execution metadata
+        
+    Returns:
+        Complete HTML document as string
+    """
+    from mcp_eval.summary_models import TestRunSummary, ScenarioStatus
+    
+    # Format timestamp for title
+    timestamp_str = test_run.test_run_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Build HTML document
+    html_parts = []
+    
+    # DOCTYPE and HTML head
+    html_parts.append(f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Evaluation Test Summary - {timestamp_str}</title>
+    <style>
+        /* Color Palette */
+        :root {{
+            --color-passed: #28a745;
+            --color-failed: #dc3545;
+            --color-recorded: #007bff;
+            --color-error: #ffc107;
+            --color-bg: #ffffff;
+            --color-text: #212529;
+            --color-border: #dee2e6;
+        }}
+        
+        /* General Styles */
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--color-bg);
+            color: var(--color-text);
+        }}
+        
+        header {{
+            margin-bottom: 30px;
+        }}
+        
+        h1 {{
+            margin: 0 0 15px 0;
+            color: var(--color-text);
+        }}
+        
+        .summary-stats {{
+            margin: 15px 0;
+            font-size: 1.1rem;
+        }}
+        
+        .summary-stats .stat {{
+            display: inline-block;
+            margin-right: 20px;
+            padding: 5px 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }}
+        
+        .summary-stats .stat.passed {{
+            color: var(--color-passed);
+            font-weight: 600;
+        }}
+        
+        .summary-stats .stat.failed {{
+            color: var(--color-failed);
+            font-weight: 600;
+        }}
+        
+        .summary-stats .stat.recorded {{
+            color: var(--color-recorded);
+            font-weight: 600;
+        }}
+        
+        .summary-stats .stat.error {{
+            color: var(--color-error);
+            font-weight: 600;
+        }}
+        
+        .metadata {{
+            margin: 10px 0;
+            font-size: 0.9rem;
+            color: #6c757d;
+        }}
+        
+        .metadata span {{
+            margin-right: 20px;
+        }}
+        
+        /* Table Styles */
+        main {{
+            overflow-x: auto;
+        }}
+        
+        .scenarios-table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }}
+        
+        .scenarios-table thead {{
+            background-color: #f8f9fa;
+            border-bottom: 2px solid var(--color-border);
+        }}
+        
+        .scenarios-table th {{
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--color-text);
+        }}
+        
+        .scenarios-table td {{
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--color-border);
+        }}
+        
+        .scenarios-table tbody tr:hover {{
+            background-color: #f8f9fa;
+        }}
+        
+        /* Status Badge Styles */
+        .badge {{
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: white;
+            text-align: center;
+        }}
+        
+        .status-passed {{
+            background-color: var(--color-passed);
+        }}
+        
+        .status-failed {{
+            background-color: var(--color-failed);
+        }}
+        
+        .status-recorded {{
+            background-color: var(--color-recorded);
+        }}
+        
+        .status-error {{
+            background-color: var(--color-error);
+            color: #212529; /* Dark text on yellow for contrast */
+        }}
+        
+        /* Column-specific Styles */
+        .scenario-name a {{
+            color: #007bff;
+            text-decoration: none;
+        }}
+        
+        .scenario-name a:hover {{
+            text-decoration: underline;
+        }}
+        
+        .intent {{
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }}
+        
+        .tool-count,
+        .duration,
+        .similarity-score {{
+            text-align: center;
+        }}
+        
+        /* Footer */
+        footer {{
+            margin-top: 40px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #6c757d;
+        }}
+    </style>
+</head>
+<body>""")
+    
+    # Header section
+    html_parts.append(f"""
+    <header>
+        <h1>MCP Evaluation Test Summary</h1>
+        <div class="summary-stats">
+            <span class="stat">Total: {test_run.total_scenarios}</span>
+            <span class="stat passed">{test_run.passed_count} passed</span>
+            <span class="stat failed">{test_run.failed_count} failed</span>
+            <span class="stat recorded">{test_run.recorded_count} recorded</span>""")
+    
+    # Only show error stat if there are errors
+    if test_run.error_count > 0:
+        html_parts.append(f"""
+            <span class="stat error">{test_run.error_count} errors</span>""")
+    
+    html_parts.append("""
+        </div>
+        <div class="metadata">""")
+    
+    # Metadata line
+    html_parts.append(f"""
+            <span>Test Run: {test_run.test_run_timestamp.isoformat()}</span>""")
+    
+    if test_run.git_hash:
+        html_parts.append(f"""
+            <span>Git: {test_run.git_hash}</span>""")
+    
+    if test_run.mcp_config_path:
+        html_parts.append(f"""
+            <span>Config: {test_run.mcp_config_path}</span>""")
+    
+    html_parts.append("""
+        </div>
+    </header>""")
+    
+    # Main table section
+    html_parts.append("""
+    <main>
+        <table class="scenarios-table">
+            <thead>
+                <tr>
+                    <th>Scenario</th>
+                    <th>Intent</th>
+                    <th>Status</th>
+                    <th>Tools</th>
+                    <th>Duration</th>
+                    <th>Score</th>
+                </tr>
+            </thead>
+            <tbody>""")
+    
+    # Table rows - one per scenario
+    for summary in test_run.scenario_summaries:
+        status_class = summary.status.value.lower()
+        status_color = _get_status_color(summary.status)
+        display_intent, full_intent = _truncate_intent(summary.user_intent)
+        duration_str = _format_duration(summary.duration_seconds)
+        similarity_str = _format_similarity(summary.similarity_score)
+        
+        html_parts.append(f"""
+                <tr class="scenario-row status-{status_class}">
+                    <td class="scenario-name">
+                        <a href="{summary.detailed_report_path}">{html.escape(summary.scenario_name)}</a>
+                    </td>
+                    <td class="intent" title="{html.escape(full_intent)}">
+                        {html.escape(display_intent)}
+                    </td>
+                    <td class="status">
+                        <span class="badge status-{status_class}">{summary.status.value}</span>
+                    </td>
+                    <td class="tool-count">{summary.tool_count}</td>
+                    <td class="duration">{duration_str}</td>
+                    <td class="similarity-score">{similarity_str}</td>
+                </tr>""")
+    
+    # Close table and main
+    html_parts.append("""
+            </tbody>
+        </table>
+    </main>""")
+    
+    # Footer
+    from mcp_eval import __version__
+    html_parts.append(f"""
+    <footer>
+        <p>Generated by mcp-eval v{__version__}</p>
+    </footer>
+</body>
+</html>""")
+    
+    return "".join(html_parts)

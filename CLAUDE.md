@@ -112,7 +112,8 @@ mcp-eval test --tag security --tag server_management
 ```
 - Runs scenarios in pytest-style with compact output
 - Shows similarity scores in console output
-- Generates HTML reports for each test run
+- Generates individual HTML reports for each scenario
+- Generates aggregated summary report listing all scenarios
 - Supports recursive scenario discovery in subdirectories
 - Records baselines for scenarios without existing baselines
 - Compares against baselines and shows PASS/FAIL with scores
@@ -122,7 +123,8 @@ mcp-eval test --tag security --tag server_management
 mcp-eval batch --scenarios scenarios/ --output reports/
 ```
 - Runs multiple scenarios in sequence
-- Generates aggregate reports
+- Generates individual baseline reports for each scenario
+- Generates aggregated summary report listing all scenarios
 - Supports parallel execution
 - Recursively finds scenarios in subdirectories
 
@@ -232,6 +234,31 @@ The system generates interactive HTML reports for both baseline recordings and c
 HTML reports are saved to the `reports/` directory with timestamped filenames:
 - Baseline: `reports/{scenario}_baseline_{timestamp}.html`
 - Comparison: `reports/{scenario}_comparison_{timestamp}.html`
+
+5. **Aggregated Summary Reports**: When running multiple scenarios via `test` or `batch` commands, an aggregated HTML summary report is automatically generated:
+   - **Header Section**: Total counts of passed, failed, recorded, and error scenarios
+   - **Metadata Line**: Test run timestamp, git commit hash (if in git repo), MCP config file path
+   - **Scenario Table**: Comprehensive overview of all executed scenarios with:
+     - Scenario name (clickable link to detailed report)
+     - User intent (truncated to 60 chars with full text tooltip)
+     - Status badge (color-coded: green for PASSED, red for FAILED, blue for RECORDED, yellow for ERROR)
+     - Tool count (number of MCP tools invoked)
+     - Duration (execution time in seconds)
+     - Similarity score (0.00-1.00 or N/A for baseline recordings)
+   - **Responsive Design**: Horizontal scrolling on narrow viewports for mobile compatibility
+   - **Portable Links**: Uses relative file paths for report portability across systems
+
+Summary reports are saved with timestamped filenames:
+- Test command: `reports/test_summary_{timestamp}.html`
+- Batch command: `reports/batch_summary_{timestamp}.html`
+
+Example summary report header:
+```
+Test Summary Report
+Total: 15 scenarios | ✓ 12 passed | ✗ 2 failed | ○ 1 recorded
+
+Timestamp: 2025-11-11T14:35:22 | Git: a1b2c3d4 | Config: mcp_servers.json
+```
 
 ### Evaluation Metrics
 
@@ -401,3 +428,10 @@ grep "8081" mcp_servers.json || echo "ERROR: Wrong port in config"
 3. **Phase 3**: Evaluation metrics and reporting
 4. **Phase 4**: Test scenarios and validation
 5. **Phase 5**: Batch processing and optimization
+
+## Active Technologies
+- Python 3.11+ + click (CLI), rich (console output), pydantic (data validation), existing html_reporter.py module (004-aggregated-test-reports)
+- File system - read detailed_log.json files, write HTML reports to reports/ directory (004-aggregated-test-reports)
+
+## Recent Changes
+- 004-aggregated-test-reports: Added Python 3.11+ + click (CLI), rich (console output), pydantic (data validation), existing html_reporter.py module

@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 from rich.console import Console
@@ -17,7 +18,8 @@ from dotenv import load_dotenv
 from .scenario_runner import FailureAwareScenarioRunner
 from .evaluator import TrajectoryEvaluator
 from .reporter import ReportGenerator
-from .html_reporter import HTMLReporter
+from .html_reporter import HTMLReporter, generate_summary_report
+from .summary_models import ScenarioExecutionSummary, ScenarioStatus, TestRunSummary
 
 # Load environment variables from .env file
 load_dotenv()
@@ -295,20 +297,29 @@ def compare(scenario: Path, baseline: Path, output: Path, mcp_config: Path, verb
     help="Run scenarios in parallel"
 )
 def batch(scenarios: Path, output: Path, mcp_config: Path, parallel: bool):
-    """Run multiple scenarios in batch mode."""
+    """Run multiple scenarios in batch mode.
+
+    Generates:
+    - Individual baseline reports for each scenario
+    - Aggregated summary report listing all scenarios
+    """
+    # Initialize summary report data collection
+    run_start_time = datetime.now()
+    scenario_summaries: List[ScenarioExecutionSummary] = []
+
     console.print(f"🚀 [bold blue]Running batch evaluation:[/bold blue] {scenarios}")
-    
-    # Find all scenario files
-    scenario_files = list(scenarios.glob("*.yaml")) + list(scenarios.glob("*.yml"))
-    
+
+    # Find all scenario files recursively
+    scenario_files = list(scenarios.rglob("*.yaml")) + list(scenarios.rglob("*.yml"))
+
     if not scenario_files:
         raise click.ClickException(f"No scenario files found in {scenarios}")
-    
+
     console.print(f"Found {len(scenario_files)} scenarios to evaluate")
-    
+
     # Create output directory
     output.mkdir(parents=True, exist_ok=True)
-    
+
     async def batch_async():
         results = []
         
@@ -318,35 +329,76 @@ def batch(scenarios: Path, output: Path, mcp_config: Path, parallel: bool):
             for scenario_file in scenario_files:
                 scenario_name = scenario_file.stem
                 scenario_output = output / scenario_name
-                
+
                 try:
                     # Load and execute scenario
                     with open(scenario_file) as f:
                         scenario_data = yaml.safe_load(f)
-                    
+
+                    start_time = time.time()
                     runner = FailureAwareScenarioRunner(output_dir=scenario_output, mcp_config=str(mcp_config))
                     success, execution_data = await runner.execute_scenario(scenario_file, mode="baseline")
-                    
+                    duration = time.time() - start_time
+
                     # Save individual results using FailureAwareScenarioRunner
                     runner.save_execution_results(execution_data, scenario_name, "baseline")
-                    
+
+                    # Generate HTML baseline report
+                    html_reporter = HTMLReporter()
+                    html_report_path = html_reporter.generate_baseline_report(execution_data, scenario_name)
+
+                    # Count MCP tools used
+                    tool_count = len([t for t in execution_data.get("tool_calls_summary", [])
+                                     if t.get("tool_name", "").startswith("mcp__")])
+
+                    # Get relative scenario path
+                    scenario_rel_path = get_scenario_relative_path(scenario_file)
+
+                    # Create scenario summary
+                    scenario_summary = ScenarioExecutionSummary(
+                        scenario_name=scenario_name,
+                        scenario_path=str(scenario_rel_path),
+                        user_intent=scenario_data.get("user_intent", ""),
+                        status=ScenarioStatus.RECORDED if success else ScenarioStatus.ERROR,
+                        tool_count=tool_count,
+                        duration_seconds=duration,
+                        detailed_report_path=Path(html_report_path).name,
+                        similarity_score=None
+                    )
+                    scenario_summaries.append(scenario_summary)
+
                     results.append({
                         "scenario": scenario_name,
                         "status": "SUCCESS" if success else "FAILED",
-                        "execution_time": execution_data.get("execution_time", 0),
-                        "tool_calls": len(execution_data.get("tool_calls_summary", [])),
+                        "execution_time": duration,
+                        "tool_calls": tool_count,
                         "output_dir": str(scenario_output)
                     })
-                    
+
                 except Exception as e:
                     console.print(f"❌ Failed: {scenario_name} - {e}")
+
+                    # Create error scenario summary
+                    scenario_rel_path = get_scenario_relative_path(scenario_file)
+                    scenario_summary = ScenarioExecutionSummary(
+                        scenario_name=scenario_name,
+                        scenario_path=str(scenario_rel_path),
+                        user_intent="",
+                        status=ScenarioStatus.ERROR,
+                        tool_count=0,
+                        duration_seconds=0.0,
+                        detailed_report_path=f"{scenario_name}_error.html",
+                        similarity_score=None
+                    )
+                    scenario_summaries.append(scenario_summary)
+
                     results.append({
                         "scenario": scenario_name,
                         "status": "FAILED",
                         "error": str(e),
                         "output_dir": None
                     })
-                
+
                 progress.advance(task)
         
         return results
@@ -364,18 +416,58 @@ def batch(scenarios: Path, output: Path, mcp_config: Path, parallel: bool):
     
     # Display summary
     success_count = len([r for r in results if r["status"] == "SUCCESS"])
-    
+
     table = Table(title="Batch Evaluation Summary")
     table.add_column("Metric", style="bold")
     table.add_column("Value", style="cyan")
-    
+
     table.add_row("Total Scenarios", str(len(results)))
     table.add_row("Successful", str(success_count))
     table.add_row("Failed", str(len(results) - success_count))
     table.add_row("Success Rate", f"{success_count/len(results)*100:.1f}%")
-    
+
     console.print(table)
     console.print(f"📊 [bold green]Batch results saved to:[/bold green] {output}")
+
+    # Generate aggregated summary report
+    if scenario_summaries:
+        # Count status types
+        recorded_count = len([s for s in scenario_summaries if s.status == ScenarioStatus.RECORDED])
+        error_count = len([s for s in scenario_summaries if s.status == ScenarioStatus.ERROR])
+
+        test_run = TestRunSummary(
+            test_run_timestamp=run_start_time,
+            total_scenarios=len(scenario_summaries),
+            passed_count=0,  # Batch mode doesn't do comparisons
+            failed_count=0,
+            recorded_count=recorded_count,
+            error_count=error_count,
+            scenario_summaries=scenario_summaries,
+            mcp_config_path=str(mcp_config) if mcp_config else None,
+            git_hash=get_git_hash()
+        )
+
+        summary_html = generate_summary_report(test_run)
+        timestamp_str = run_start_time.strftime("%Y%m%d_%H%M%S")
+        summary_path = Path("reports") / f"batch_summary_{timestamp_str}.html"
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+        summary_path.write_text(summary_html, encoding="utf-8")
+
+        console.print(f"\n📊 [green]Summary report:[/green] {summary_path}")
+
+
+def get_git_hash() -> Optional[str]:
+    """Get current git commit hash (8 characters) or None if not in git repo."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short=8", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        return result.stdout.strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
 
 
 @cli.command()
@@ -413,12 +505,21 @@ def batch(scenarios: Path, output: Path, mcp_config: Path, parallel: bool):
     help="Stop on first failure"
 )
 def test(scenarios_dir: Path, tag: tuple, scenario: tuple, mcp_config: Path, verbose: bool, fail_fast: bool):
-    """Run MCP evaluation scenarios in pytest-style with compact output."""
-    
+    """Run MCP evaluation scenarios in pytest-style with compact output.
+
+    Generates:
+    - Individual HTML reports for each scenario
+    - Aggregated summary report listing all scenarios
+    """
+
+    # Initialize summary report data collection
+    run_start_time = datetime.now()
+    scenario_summaries: List[ScenarioExecutionSummary] = []
+
     # Restart MCPProxy to ensure clean state
     console.print("🔄 [yellow]Restarting MCPProxy for clean state...[/yellow]")
     restart_mcpproxy()
-    
+
     # Collect scenarios to run
     scenarios_to_run = []
     
@@ -485,11 +586,11 @@ def test(scenarios_dir: Path, tag: tuple, scenario: tuple, mcp_config: Path, ver
         
         if has_baseline:
             # Run comparison mode
-            status, score = run_scenario_with_comparison(scenario_file, baseline_dir, mcp_config, verbose)
+            status, score, metadata = run_scenario_with_comparison(scenario_file, baseline_dir, mcp_config, verbose)
         else:
             # Run baseline recording mode
-            status, score = run_scenario_baseline(scenario_file, mcp_config, verbose)
-        
+            status, score, metadata = run_scenario_baseline(scenario_file, mcp_config, verbose)
+
         # Format status with colors
         status_text = Text()
         if status == "PASS":
@@ -502,16 +603,42 @@ def test(scenarios_dir: Path, tag: tuple, scenario: tuple, mcp_config: Path, ver
             status_text.append("RECORDED", style="blue bold")
         else:
             status_text.append(status, style="yellow bold")
-        
+
         # Display compact result
         score_str = f"{score:.2f}" if score is not None else "N/A"
         console.print(f"{scenario_name:<30} {status_text} {score_str:>6}")
-        
+
         results.append({
             "scenario": scenario_name,
             "status": status,
             "score": score
         })
+
+        # Collect scenario summary for aggregated report
+        # Map status strings to ScenarioStatus enum
+        status_map = {
+            "PASS": ScenarioStatus.PASSED,
+            "FAIL": ScenarioStatus.FAILED,
+            "ERROR": ScenarioStatus.ERROR,
+            "RECORDED": ScenarioStatus.RECORDED
+        }
+
+        # Get relative path to HTML report (just filename for portability)
+        html_report_path = None
+        if metadata.get("html_report_path"):
+            html_report_path = Path(metadata["html_report_path"]).name
+
+        scenario_summary = ScenarioExecutionSummary(
+            scenario_name=scenario_name,
+            scenario_path=str(scenario_rel_path),
+            user_intent=scenario_data.get("user_intent", ""),
+            status=status_map.get(status, ScenarioStatus.ERROR),
+            tool_count=metadata.get("tool_count", 0),
+            duration_seconds=metadata.get("duration_seconds", 0.0),
+            detailed_report_path=html_report_path or f"{scenario_name}_report.html",
+            similarity_score=score
+        )
+        scenario_summaries.append(scenario_summary)
         
         if status in ["FAIL", "ERROR"]:
             failed_count += 1
@@ -520,23 +647,50 @@ def test(scenarios_dir: Path, tag: tuple, scenario: tuple, mcp_config: Path, ver
     
     # Print summary
     console.print()
-    passed = len([r for r in results if r["status"] == "PASS"])
-    recorded = len([r for r in results if r["status"] == "RECORDED"])
-    failed = failed_count
-    
+
+    # Calculate counts from scenario_summaries for consistency
+    passed = len([s for s in scenario_summaries if s.status == ScenarioStatus.PASSED])
+    failed = len([s for s in scenario_summaries if s.status == ScenarioStatus.FAILED])
+    recorded = len([s for s in scenario_summaries if s.status == ScenarioStatus.RECORDED])
+    error = len([s for s in scenario_summaries if s.status == ScenarioStatus.ERROR])
+
     summary_text = Text()
-    if failed == 0:
+    if failed == 0 and error == 0:
         summary_text.append("✅ ", style="green")
     else:
         summary_text.append("❌ ", style="red")
-    
+
     summary_text.append(f"{passed} passed", style="green" if passed > 0 else "dim")
     if recorded > 0:
         summary_text.append(f", {recorded} recorded", style="blue")
     if failed > 0:
         summary_text.append(f", {failed} failed", style="red")
-    
+    if error > 0:
+        summary_text.append(f", {error} error", style="yellow")
+
     console.print(summary_text)
+
+    # Generate aggregated summary report
+    if scenario_summaries:
+        test_run = TestRunSummary(
+            test_run_timestamp=run_start_time,
+            total_scenarios=len(scenario_summaries),
+            passed_count=passed,
+            failed_count=failed,
+            recorded_count=recorded,
+            error_count=error,
+            scenario_summaries=scenario_summaries,
+            mcp_config_path=str(mcp_config) if mcp_config else None,
+            git_hash=get_git_hash()
+        )
+
+        summary_html = generate_summary_report(test_run)
+        timestamp_str = run_start_time.strftime("%Y%m%d_%H%M%S")
+        summary_path = Path("reports") / f"test_summary_{timestamp_str}.html"
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+        summary_path.write_text(summary_html, encoding="utf-8")
+
+        console.print(f"\n📊 [green]Summary report:[/green] {summary_path}")
 
 
 def restart_mcpproxy():
@@ -654,26 +808,42 @@ def _check_and_rebuild_mcpproxy():
         console.print(f"[yellow]Warning: Could not check MCPProxy build status: {e}[/yellow]")
 
 
-def run_scenario_with_comparison(scenario_file: Path, baseline_dir: Path, mcp_config: Path, verbose: bool) -> tuple[str, Optional[float]]:
-    """Run scenario and compare against baseline."""
+def run_scenario_with_comparison(scenario_file: Path, baseline_dir: Path, mcp_config: Path, verbose: bool) -> tuple[str, Optional[float], dict]:
+    """Run scenario and compare against baseline.
+
+    Returns:
+        tuple: (status, score, metadata_dict) where metadata_dict contains:
+            - execution_data: full execution data from runner
+            - html_report_path: path to generated HTML report
+            - tool_count: number of MCP tools invoked
+            - duration_seconds: execution time
+    """
     try:
         import asyncio
-        
+        import time
+
         # Load baseline data
         baseline_detailed = baseline_dir / "detailed_log.json"
         with open(baseline_detailed) as f:
             baseline_data = json.load(f)
-        
+
         # Execute current scenario
         async def execute_scenario():
             runner = FailureAwareScenarioRunner(output_dir=Path("temp_comparison"), mcp_config=str(mcp_config))
+            start_time = time.time()
             success, execution_data = await runner.execute_scenario(scenario_file, mode="evaluation")
-            return success, execution_data
-        
-        success, execution_data = asyncio.run(execute_scenario())
-        
+            duration = time.time() - start_time
+            return success, execution_data, duration
+
+        success, execution_data, duration = asyncio.run(execute_scenario())
+
         if not success:
-            return "FAIL", 0.0
+            return "FAIL", 0.0, {
+                "execution_data": execution_data,
+                "html_report_path": None,
+                "tool_count": 0,
+                "duration_seconds": duration
+            }
         
         # Compare trajectories
         evaluator = TrajectoryEvaluator()
@@ -720,55 +890,103 @@ def run_scenario_with_comparison(scenario_file: Path, baseline_dir: Path, mcp_co
         html_report_path = html_reporter.generate_comparison_report(
             execution_data, baseline_data, report, scenario_name
         )
-        
+
         if verbose:
             console.print(f"   [dim]📊 HTML report: {html_report_path}[/dim]")
-        
-        return status, score
-        
+
+        # Count MCP tools used
+        tool_count = len([t for t in execution_data.get("tool_calls_summary", [])
+                         if t.get("tool_name", "").startswith("mcp__")])
+
+        metadata = {
+            "execution_data": execution_data,
+            "html_report_path": html_report_path,
+            "tool_count": tool_count,
+            "duration_seconds": duration
+        }
+
+        return status, score, metadata
+
     except Exception as e:
         if verbose:
             console.print(f"   [red]Error: {e}[/red]")
-        return "ERROR", None
+        return "ERROR", None, {
+            "execution_data": {},
+            "html_report_path": None,
+            "tool_count": 0,
+            "duration_seconds": 0.0
+        }
 
 
-def run_scenario_baseline(scenario_file: Path, mcp_config: Path, verbose: bool) -> tuple[str, Optional[float]]:
-    """Run scenario in baseline recording mode."""
+def run_scenario_baseline(scenario_file: Path, mcp_config: Path, verbose: bool) -> tuple[str, Optional[float], dict]:
+    """Run scenario in baseline recording mode.
+
+    Returns:
+        tuple: (status, score, metadata_dict) where metadata_dict contains:
+            - execution_data: full execution data from runner
+            - html_report_path: path to generated HTML report
+            - tool_count: number of MCP tools invoked
+            - duration_seconds: execution time
+    """
     try:
         import asyncio
-        
+        import time
+
         scenario_name = scenario_file.stem
         scenario_rel_path = get_scenario_relative_path(scenario_file)
         output_dir = Path("baselines") / scenario_rel_path / f"{scenario_name}_baseline"
-        
+
         async def record_scenario():
             runner = FailureAwareScenarioRunner(output_dir=output_dir, mcp_config=str(mcp_config))
+            start_time = time.time()
             success, execution_data = await runner.execute_scenario(scenario_file, mode="baseline")
-            
+            duration = time.time() - start_time
+
             if success:
                 runner.save_execution_results(execution_data, scenario_name, "baseline")
-            
-            return success, execution_data
-        
-        success, execution_data = asyncio.run(record_scenario())
-        
+
+            return success, execution_data, duration
+
+        success, execution_data, duration = asyncio.run(record_scenario())
+
         if success:
             # Generate HTML baseline report
             from .html_reporter import HTMLReporter
             html_reporter = HTMLReporter()
             html_report_path = html_reporter.generate_baseline_report(execution_data, scenario_name)
-            
+
             if verbose:
                 console.print(f"   [dim]📊 HTML baseline report: {html_report_path}[/dim]")
-                
-            return "RECORDED", None
+
+            # Count MCP tools used
+            tool_count = len([t for t in execution_data.get("tool_calls_summary", [])
+                             if t.get("tool_name", "").startswith("mcp__")])
+
+            metadata = {
+                "execution_data": execution_data,
+                "html_report_path": html_report_path,
+                "tool_count": tool_count,
+                "duration_seconds": duration
+            }
+
+            return "RECORDED", None, metadata
         else:
-            return "ERROR", None
-            
+            return "ERROR", None, {
+                "execution_data": execution_data,
+                "html_report_path": None,
+                "tool_count": 0,
+                "duration_seconds": duration
+            }
+
     except Exception as e:
         if verbose:
             console.print(f"   [red]Error: {e}[/red]")
-        return "ERROR", None
+        return "ERROR", None, {
+            "execution_data": {},
+            "html_report_path": None,
+            "tool_count": 0,
+            "duration_seconds": 0.0
+        }
 
 
 if __name__ == "__main__":

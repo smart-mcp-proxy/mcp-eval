@@ -218,6 +218,7 @@ class FailureAwareScenarioRunner:
             # Create a temporary SDK client to discover tools
             client = ClaudeSDKClient(
                 options=ClaudeAgentOptions(
+                    system_prompt="You are a tool discovery assistant. List all available MCP tools.",
                     mcp_servers=mcp_config_dict,  # Pass dict directly, not file path
                     permission_mode="bypassPermissions",
                     model="claude-sonnet-4-5-20250929",
@@ -245,35 +246,35 @@ class FailureAwareScenarioRunner:
                 try:
                     # Send a simple query to trigger tool discovery
                     console.print(f"🛠️  [yellow]Querying available tools (attempt {attempt + 1}/{max_retries})...[/yellow]")
-                    response = await client.query(
-                        "List all available MCP tools and their descriptions"
-                    )
 
-                    # Check if response is None
-                    if response is None:
-                        raise ValueError("client.query() returned None - connection may have failed")
+                    # SDK uses streaming API: query() starts request, receive_response() gets messages
+                    await client.query("List all available MCP tools and their descriptions")
+
+                    # Collect response messages
+                    messages = []
+                    async for msg in client.receive_response():
+                        messages.append(msg)
 
                     # Parse the response to extract tool information
                     tools_info = {
                         "discovery_method": "claude_query",
-                        "query_response": str(response)[:1000],  # Truncate response for storage
+                        "query_response": f"Received {len(messages)} messages",
                         "discovered_at": datetime.now().isoformat(),
                         "tools": []
                     }
 
                     # Try to extract structured tool information from messages
-                    if hasattr(response, 'messages') and response.messages:
-                        for message in response.messages:
-                            if hasattr(message, 'content'):
-                                for block in message.content:
-                                    if hasattr(block, 'name') and hasattr(block, 'id'):  # Tool use block
-                                        tool_info = {
-                                            "name": block.name,
-                                            "id": block.id,
-                                            "input": getattr(block, 'input', {}),
-                                            "discovered_via": "tool_call"
-                                        }
-                                        tools_info["tools"].append(tool_info)
+                    for message in messages:
+                        if hasattr(message, 'content') and message.content:
+                            for block in message.content:
+                                if hasattr(block, 'name') and hasattr(block, 'id'):  # Tool use block
+                                    tool_info = {
+                                        "name": block.name,
+                                        "id": block.id,
+                                        "input": getattr(block, 'input', {}),
+                                        "discovered_via": "tool_call"
+                                    }
+                                    tools_info["tools"].append(tool_info)
 
                     console.print(f"✅ [green]Discovered {len(tools_info['tools'])} tools via queries[/green]")
                     if client_connected and client:

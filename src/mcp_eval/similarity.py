@@ -1,8 +1,54 @@
 """Tool call similarity calculation module for MCP evaluation."""
 
 import json
-from typing import Dict, Any, List, Set
+from typing import Dict, Any, List, Set, Optional, Literal
 from collections import Counter
+from dataclasses import dataclass, field
+
+
+@dataclass
+class SimilarityConfig:
+    """Configuration for similarity calculations."""
+    # Algorithm weights
+    key_similarity_weight: float = 0.3
+    value_similarity_weight: float = 0.7
+
+    # Parameter-specific weights
+    parameter_weights: Dict[str, float] = field(default_factory=lambda: {
+        "tool_name": 2.0,
+        "query": 1.5,
+        "operation": 1.5,
+        "default": 1.0
+    })
+
+    # Missing parameter handling
+    missing_param_score: float = 0.5  # Partial match, not complete failure
+
+    # String comparison
+    min_word_overlap_threshold: float = 0.3
+
+    def get_parameter_weight(self, param_name: str) -> float:
+        """Get weight for specific parameter."""
+        return self.parameter_weights.get(param_name, self.parameter_weights["default"])
+
+
+@dataclass
+class ParameterComparison:
+    """Comparison of a single parameter between two tool calls."""
+    parameter_name: str
+    expected_value: Optional[Any]
+    actual_value: Optional[Any]
+    similarity_score: float  # 0.0-1.0
+    comparison_method: Literal["exact", "jaccard", "cosine", "missing"]
+    weight: float = 1.0  # Parameter importance weight
+
+    @property
+    def is_exact_match(self) -> bool:
+        return self.similarity_score == 1.0
+
+    @property
+    def is_missing(self) -> bool:
+        return self.expected_value is None or self.actual_value is None
 
 
 def calculate_key_similarity(keys1: Set[str], keys2: Set[str]) -> float:
@@ -158,72 +204,228 @@ def calculate_value_similarity(value1: Any, value2: Any) -> float:
     return calculate_string_similarity(str(value1), str(value2))
 
 
-def calculate_args_similarity(args1: Dict[str, Any], args2: Dict[str, Any]) -> float:
-    """Calculate similarity between two sets of tool arguments.
-    
+def normalize_parameters(params: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize parameters for consistent comparison.
+
+    Normalization includes:
+    - Alphabetical key sorting (order-independent comparison)
+    - String value whitespace stripping
+    - Boolean value normalization to lowercase strings
+    - None/null value normalization
+
+    Args:
+        params: Parameter dictionary to normalize
+
+    Returns:
+        Normalized parameter dictionary
+
+    Example:
+        >>> normalize_parameters({"query": "  email  ", "debug": True, "limit": 10})
+        {'debug': 'true', 'limit': 10, 'query': 'email'}
+    """
+    if not params:
+        return {}
+
+    normalized = {}
+
+    # Sort keys alphabetically for order-independent comparison
+    for key in sorted(params.keys()):
+        value = params[key]
+
+        # Normalize string values: strip whitespace
+        if isinstance(value, str):
+            normalized[key] = value.strip()
+        # Normalize boolean values to lowercase strings
+        elif isinstance(value, bool):
+            normalized[key] = str(value).lower()
+        # Keep other values as-is (numbers, None, dicts, lists)
+        else:
+            normalized[key] = value
+
+    return normalized
+
+
+def calculate_parameter_similarity(
+    param_name: str,
+    value1: Any,
+    value2: Any,
+    config: Optional[SimilarityConfig] = None
+) -> ParameterComparison:
+    """Calculate similarity between two parameter values with weighting.
+
+    Args:
+        param_name: Name of the parameter being compared
+        value1: First parameter value
+        value2: Second parameter value
+        config: Optional similarity configuration
+
+    Returns:
+        ParameterComparison object with similarity score and metadata
+
+    Example:
+        >>> result = calculate_parameter_similarity("query", "email", "email tools")
+        >>> result.similarity_score
+        0.5
+        >>> result.comparison_method
+        'jaccard'
+    """
+    if config is None:
+        config = SimilarityConfig()
+
+    # Get weight for this parameter
+    weight = config.get_parameter_weight(param_name)
+
+    # Handle missing values
+    if value1 is None and value2 is None:
+        return ParameterComparison(
+            parameter_name=param_name,
+            expected_value=value1,
+            actual_value=value2,
+            similarity_score=1.0,
+            comparison_method="exact",
+            weight=weight
+        )
+
+    if value1 is None or value2 is None:
+        return ParameterComparison(
+            parameter_name=param_name,
+            expected_value=value1,
+            actual_value=value2,
+            similarity_score=config.missing_param_score,
+            comparison_method="missing",
+            weight=weight
+        )
+
+    # Calculate value similarity
+    similarity = calculate_value_similarity(value1, value2)
+
+    # Determine comparison method
+    if similarity == 1.0:
+        method = "exact"
+    elif isinstance(value1, str) and isinstance(value2, str):
+        method = "jaccard"
+    elif isinstance(value1, (dict, list)) and isinstance(value2, (dict, list)):
+        method = "cosine"
+    else:
+        method = "jaccard"
+
+    return ParameterComparison(
+        parameter_name=param_name,
+        expected_value=value1,
+        actual_value=value2,
+        similarity_score=similarity,
+        comparison_method=method,
+        weight=weight
+    )
+
+
+def calculate_args_similarity(
+    args1: Dict[str, Any],
+    args2: Dict[str, Any],
+    config: Optional[SimilarityConfig] = None
+) -> float:
+    """Calculate similarity between two sets of tool arguments with parameter weighting.
+
     Args:
         args1: First set of arguments
         args2: Second set of arguments
-        
+        config: Optional similarity configuration for parameter weights
+
     Returns:
         Similarity score between 0.0 and 1.0
+
+    Example:
+        >>> args1 = {"query": "email", "debug": True}
+        >>> args2 = {"query": "email tools", "debug": True}
+        >>> calculate_args_similarity(args1, args2)
+        0.85
     """
-    if args1 == args2:
+    if config is None:
+        config = SimilarityConfig()
+
+    # Normalize parameters for consistent comparison
+    normalized1 = normalize_parameters(args1)
+    normalized2 = normalize_parameters(args2)
+
+    if normalized1 == normalized2:
         return 1.0
-    
-    if not args1 and not args2:
+
+    if not normalized1 and not normalized2:
         return 1.0
-    
-    # Calculate key similarity
-    keys1 = set(args1.keys())
-    keys2 = set(args2.keys())
-    key_similarity = calculate_key_similarity(keys1, keys2)
-    
-    # If no common keys, return key similarity only
-    common_keys = keys1.intersection(keys2)
-    if not common_keys:
-        return key_similarity * 0.5  # Penalize for no common keys
-    
-    # Calculate value similarities for common keys
-    value_similarities = []
-    for key in common_keys:
-        value_sim = calculate_value_similarity(args1[key], args2[key])
-        value_similarities.append(value_sim)
-    
-    # Average value similarity
-    avg_value_similarity = sum(value_similarities) / len(value_similarities)
-    
-    # Combine key and value similarities (weighted average)
-    # Key structure is 30% important, values are 70% important
-    combined_similarity = (key_similarity * 0.3) + (avg_value_similarity * 0.7)
-    
-    return combined_similarity
+
+    # Get all parameter names from both sets
+    keys1 = set(normalized1.keys())
+    keys2 = set(normalized2.keys())
+    all_keys = keys1.union(keys2)
+
+    if not all_keys:
+        return 1.0
+
+    # Calculate weighted parameter similarities
+    total_weight = 0.0
+    weighted_sum = 0.0
+
+    for key in all_keys:
+        value1 = normalized1.get(key)
+        value2 = normalized2.get(key)
+
+        # Calculate parameter similarity with weighting
+        param_comparison = calculate_parameter_similarity(key, value1, value2, config)
+
+        # Accumulate weighted score
+        weighted_sum += param_comparison.similarity_score * param_comparison.weight
+        total_weight += param_comparison.weight
+
+    # Return weighted average
+    if total_weight == 0:
+        return 0.0
+
+    return weighted_sum / total_weight
 
 
-def calculate_tool_call_similarity(call1: Dict[str, Any], call2: Dict[str, Any]) -> float:
-    """Calculate similarity between two tool calls.
-    
+def calculate_tool_call_similarity(
+    call1: Dict[str, Any],
+    call2: Dict[str, Any],
+    config: Optional[SimilarityConfig] = None
+) -> float:
+    """Calculate similarity between two tool calls with parameter weighting.
+
+    Uses parameter-weighted similarity calculation with normalization.
+    Tool names must match exactly; if different, returns 0.0.
+    Arguments are compared using weighted parameter similarity.
+
     Args:
         call1: First tool call with 'tool_name' and 'tool_input' keys
         call2: Second tool call with 'tool_name' and 'tool_input' keys
-        
+        config: Optional similarity configuration for custom parameter weights
+
     Returns:
         Similarity score between 0.0 and 1.0
+
+    Example:
+        >>> call1 = {"tool_name": "mcp__test__search", "tool_input": {"query": "email", "debug": True}}
+        >>> call2 = {"tool_name": "mcp__test__search", "tool_input": {"query": "email", "debug": True}}
+        >>> calculate_tool_call_similarity(call1, call2)
+        1.0
+
+        >>> call3 = {"tool_name": "mcp__test__search", "tool_input": {"query": "email tools"}}
+        >>> calculate_tool_call_similarity(call1, call3)
+        0.5
     """
     # Extract tool names
     name1 = call1.get('tool_name', '')
     name2 = call2.get('tool_name', '')
-    
+
     # If tool names are different, similarity is 0
     if name1 != name2:
         return 0.0
-    
+
     # Extract arguments
     args1 = call1.get('tool_input', {})
     args2 = call2.get('tool_input', {})
-    
-    # Calculate argument similarity
-    return calculate_args_similarity(args1, args2)
+
+    # Calculate argument similarity with config
+    return calculate_args_similarity(args1, args2, config)
 
 
 def calculate_trajectory_similarity(calls1: List[Dict[str, Any]], calls2: List[Dict[str, Any]]) -> float:

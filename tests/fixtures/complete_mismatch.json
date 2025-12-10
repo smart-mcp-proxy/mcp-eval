@@ -1,0 +1,16 @@
+{
+  "description": "Test fixture for completely different tool names (similarity = 0.0)",
+  "call1": {
+    "tool_name": "mcp__mcpproxy__retrieve_tools",
+    "tool_input": {
+      "query": "email"
+    }
+  },
+  "call2": {
+    "tool_name": "mcp__mcpproxy__upstream_servers",
+    "tool_input": {
+      "operation": "list"
+    }
+  },
+  "expected_similarity": 0.0
+}

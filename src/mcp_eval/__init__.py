@@ -1,6 +1,6 @@
 """MCP Evaluation Utility - A tool for evaluating MCP server effectiveness."""
 
-from mcp_eval.summary_models import (
+from .summary_models import (
     ScenarioExecutionSummary,
     ScenarioStatus,
     TestRunSummary,

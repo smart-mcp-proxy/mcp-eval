@@ -1,0 +1,325 @@
+{
+  "scenario": "Debug Tool Search",
+  "execution_time": "2025-11-11T15:55:06.299974",
+  "user_intent": "Search for email tools and explain the scoring",
+  "expected_trajectory": [
+    {
+      "action": "search_tools",
+      "tool": "mcp__mcpproxy__retrieve_tools",
+      "args": {
+        "query": "email",
+        "debug": true
+      }
+    }
+  ],
+  "success_criteria": [
+    "mcp__mcpproxy__retrieve_tools",
+    "email",
+    "debug"
+  ],
+  "mode": "baseline",
+  "available_tools": {
+    "discovery_method": "claude_query",
+    "query_response": "Received 53 messages",
+    "discovered_at": "2025-11-11T15:55:06.194633",
+    "tools": [
+      {
+        "name": "mcp__mcpproxy__retrieve_tools",
+        "id": "toolu_012iCtA7bB7tFSgJn8c9s8nx",
+        "input": {
+          "query": "list all available tools",
+          "limit": 100
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__upstream_servers",
+        "id": "toolu_01GDFNpwZa4GmQTXrtVtRghz",
+        "input": {
+          "operation": "list"
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__quarantine_security",
+        "id": "toolu_01U5XLnoap6xXwqWfg8UoDgd",
+        "input": {
+          "operation": "list_quarantined"
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__upstream_servers",
+        "id": "toolu_01DrvodCvQQLwhfH2xZni8JA",
+        "input": {
+          "operation": "tail_log",
+          "name": "everything-2",
+          "lines": 50
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__retrieve_tools",
+        "id": "toolu_011ETaNFUqgpo84Gjhmi45Bu",
+        "input": {
+          "query": "all tools everything",
+          "limit": 100
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__call_tool",
+        "id": "toolu_0196mE1esFf9zcwP6EPHFxti",
+        "input": {
+          "name": "everything-2:list_tools",
+          "args_json": "{}"
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__retrieve_tools",
+        "id": "toolu_01LJwLfqsYqwCcygjUg4v1gE",
+        "input": {
+          "query": "echo sample test add",
+          "limit": 100,
+          "include_stats": true
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__retrieve_tools",
+        "id": "toolu_01TDKfkh4aWd2TmmnczDNx3Q",
+        "input": {
+          "query": "tool function operation command utility helper method action",
+          "limit": 100
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__retrieve_tools",
+        "id": "toolu_017sjNuxXHz5GEEgyD8By1va",
+        "input": {
+          "query": "sample",
+          "limit": 100
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__retrieve_tools",
+        "id": "toolu_01XkkTrNMMie9M3DqHgqLX1x",
+        "input": {
+          "query": "get",
+          "limit": 100
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__retrieve_tools",
+        "id": "toolu_01ACHuYFAAVNdZgBVrMCpaBH",
+        "input": {
+          "query": "request",
+          "limit": 100
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__retrieve_tools",
+        "id": "toolu_01T3CMWu8GUhHXacpPuGkL2R",
+        "input": {
+          "query": "environment",
+          "limit": 100
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__retrieve_tools",
+        "id": "toolu_01DNCj3grb8Bv7b1md6BPzhm",
+        "input": {
+          "query": "progress notification",
+          "limit": 100
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__retrieve_tools",
+        "id": "toolu_01FqoUE43mkKAXneSJWt8nHF",
+        "input": {
+          "query": "error exception throw",
+          "limit": 100
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__retrieve_tools",
+        "id": "toolu_01NnsQAkcqNDWcG3GfEYZjuz",
+        "input": {
+          "query": "image picture photo",
+          "limit": 100
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__retrieve_tools",
+        "id": "toolu_01Er5EAbxiJDzPEVNrL8n7QG",
+        "input": {
+          "query": "text content data",
+          "limit": 100
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__retrieve_tools",
+        "id": "toolu_01EAfuDEuUzutdB6CPGhLVqH",
+        "input": {
+          "query": "a e i o u",
+          "limit": 100
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__retrieve_tools",
+        "id": "toolu_012N4p1sbfur5vFJVK6Gz21S",
+        "input": {
+          "query": "resource reference",
+          "limit": 100
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__retrieve_tools",
+        "id": "toolu_01KkPy2qZCVJeCMEkSqwsfJG",
+        "input": {
+          "query": "running operation",
+          "limit": 100
+        },
+        "discovered_via": "tool_call"
+      },
+      {
+        "name": "mcp__mcpproxy__retrieve_tools",
+        "id": "toolu_01UfwdjQnS3uStx2PhnLxGbQ",
+        "input": {
+          "query": "llm model",
+          "limit": 100
+        },
+        "discovered_via": "tool_call"
+      }
+    ]
+  },
+  "messages": [],
+  "tool_calls_summary": [
+    {
+      "tool_name": "mcp__mcpproxy__retrieve_tools",
+      "tool_id": "toolu_016VDyJqQXT2HXeynq76MSza",
+      "tool_input": {
+        "query": "email tools send receive manage messages",
+        "debug": true,
+        "limit": 10
+      },
+      "timestamp": "2025-11-11T15:55:09.918993",
+      "response": {
+        "content": [
+          {
+            "type": "text",
+            "text": "[{'type': 'text', 'text': '{\"debug\":{\"limit_applied\":10,\"query_analysis\":{\"has_colons\":false,\"has_underscores\":false,\"is_tool_name\":false,\"original_query\":\"email tools send receive manage messages\",\"query_length\":40,\"word_count\":6},\"search_backend\":\"BM25\",\"total_indexed_tools\":8},\"query\":\"email tools send receive manage messages\",\"tools\":[{\"description\":\"Samples from an LLM using MCP\\'s sampling feature\",\"inputSchema\":{\"properties\":{\"maxTokens\":{\"default\":100,\"description\":\"Maximum number of tok"
+          }
+        ],
+        "is_error": null
+      },
+      "error": null
+    }
+  ],
+  "execution_status": "SUCCESS",
+  "failure_analysis": {
+    "total_tools": 1,
+    "failed_tools": 0,
+    "failures": [],
+    "success_rate": 1.0
+  },
+  "early_stopped": false,
+  "mcpproxy_git_info": {
+    "git_hash": "d84f16b61014071522688f942bf0eb419509a8ff",
+    "git_hash_short": "d84f16b6",
+    "commit_message": "Merge pull request #134 from smart-mcp-proxy/feature/oauth-logs",
+    "commit_date": "2025-11-09 15:12:06 +0200",
+    "branch": "main"
+  },
+  "mcp_validation": {
+    "timestamp": "2025-11-11T15:55:06.207602",
+    "config_valid": true,
+    "container_healthy": true,
+    "config_path": "/Users/user/repos/mcp-eval/mcp_servers.json",
+    "container_name": "mcpproxy-test-test777-dind",
+    "health_endpoint": "http://localhost:8081/health",
+    "warnings": [],
+    "config_message": "",
+    "health_message": "MCPProxy healthy"
+  },
+  "dialog_turns": [
+    {
+      "turn_id": 1,
+      "timestamp": "2025-11-11T15:55:06.316314",
+      "turn_type": "USER_MESSAGE",
+      "actor": "User",
+      "content": "Search for email tools and explain the scoring",
+      "metadata": {
+        "scenario_intent": "Search for email tools and explain the scoring",
+        "is_clarification_response": false
+      }
+    },
+    {
+      "turn_id": 2,
+      "timestamp": "2025-11-11T15:55:09.905914",
+      "turn_type": "AGENT_MESSAGE",
+      "actor": "AI_Agent",
+      "content": "I'll search for email tools using the MCPProxy retrieve_tools function with debug mode enabled to show you the scoring details.",
+      "metadata": {
+        "message_index": 0,
+        "thinking_visible": false
+      }
+    },
+    {
+      "turn_id": 3,
+      "timestamp": "2025-11-11T15:55:09.918993",
+      "turn_type": "TOOL_CALL",
+      "actor": "AI_Agent",
+      "content": "Calling mcp__mcpproxy__retrieve_tools({'query': 'email tools send receive manage messages', 'debug': True, 'limit': 10})",
+      "metadata": {
+        "tool_name": "mcp__mcpproxy__retrieve_tools",
+        "tool_id": "toolu_016VDyJqQXT2HXeynq76MSza",
+        "tool_input": {
+          "query": "email tools send receive manage messages",
+          "debug": true,
+          "limit": 10
+        },
+        "is_mcp_tool": true
+      }
+    },
+    {
+      "turn_id": 4,
+      "timestamp": "2025-11-11T15:55:09.960827",
+      "turn_type": "TOOL_RESULT",
+      "actor": "System",
+      "content": "[{'type': 'text', 'text': '{\"debug\":{\"limit_applied\":10,\"query_analysis\":{\"has_colons\":false,\"has_underscores\":false,\"is_tool_name\":false,\"original_query\":\"email tools send receive manage messages\",\"query_length\":40,\"word_count\":6},\"search_backend\":\"BM25\",\"total_indexed_tools\":8},\"query\":\"email tools send receive manage messages\",\"tools\":[{\"description\":\"Samples from an LLM using MCP\\'s sampling feature\",\"inputSchema\":{\"properties\":{\"maxTokens\":{\"default\":100,\"description\":\"Maximum number of tok",
+      "metadata": {
+        "tool_use_id": "toolu_016VDyJqQXT2HXeynq76MSza",
+        "is_error": null,
+        "result_size_bytes": 734,
+        "execution_time_ms": 0
+      }
+    },
+    {
+      "turn_id": 5,
+      "timestamp": "2025-11-11T15:55:22.847284",
+      "turn_type": "AGENT_MESSAGE",
+      "actor": "AI_Agent",
+      "content": "Interesting! The search found only 1 tool indexed across all connected MCP servers, and it's not actually an email tool. Let me explain what happened:\n\n## Search Results Analysis\n\n**Query:** \"email tools send receive manage messages\"\n\n**Results:**\n- **Total indexed tools:** 8 tools across all upstream servers\n- **Tools found:** 1 tool (but it's not email-related)\n- **Search backend:** BM25 (Best Matching 25 - a probabilistic full-text search algorithm)\n\n## The One Tool Found\n\n**Tool:** `everything-2:sampleLLM`\n- **Score:** 0.0068 (very low relevance)\n- **Description:** \"Samples from an LLM using MCP's sampling feature\"\n- **Why it appeared:** The BM25 algorithm found some weak term overlap, but with such a low score (0.0068), it's barely relevant at all\n\n## Why No Email Tools?\n\nThe search found **no actual email tools** because:\n1. **Limited indexed tools:** Only 8 tools are currently indexed in the connected MCP servers\n2. **No email servers connected:** None of the upstream servers appear to provide email functionality\n3. **BM25 returned weak match:** The algorithm returned the LLM sampling tool with a very low score, likely matching on generic words like \"tools\" or \"messages\"\n\n## BM25 Scoring Explained\n\nThe BM25 algorithm uses:\n- **Term frequency (TF):** How often query terms appear in the tool's description/name\n- **Inverse document frequency (IDF):** Rarity of terms across all tools\n- **Document length normalization:** Adjusts for varying description lengths\n- **Saturation function:** Prevents term frequency from dominating scores\n\nThe score of 0.0068 indicates almost no meaningful overlap between the query terms and the tool's metadata.\n\n**To get email tools, you would need to:**\n1. Use `mcp__mcpproxy__search_servers` to find email-related MCP servers in registries\n2. Use `mcp__mcpproxy__upstream_servers` to add them\n3. Then search again for email tools\n\nWould you like me to search for email-related MCP servers in the registries?",
+      "metadata": {
+        "message_index": 1,
+        "thinking_visible": false
+      }
+    }
+  ],
+  "session_id": "session_3b6e57fd",
+  "dialog_session_status": "SUCCESS",
+  "dialog_execution_time": 16.56323
+}

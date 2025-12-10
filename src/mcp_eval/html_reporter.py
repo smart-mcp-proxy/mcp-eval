@@ -12,9 +12,150 @@ import re
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List, Optional
+from dataclasses import dataclass
 from rich.console import Console
 
 console = Console()
+
+
+@dataclass
+class HtmlDiffConfig:
+    """Configuration for HTML diff generation."""
+    normalize_whitespace: bool = True
+    normalize_dict_keys: bool = True  # Sort keys alphabetically
+    normalize_json_format: bool = True  # Use consistent JSON formatting
+    show_line_numbers: bool = True
+    context_lines: int = 3  # Lines of context around differences
+
+    # Character-level diff control
+    enable_character_diff: bool = True
+    highlight_whole_words: bool = False  # If True, highlight entire words not chars
+
+    # Color scheme
+    added_bg_color: str = "#c6f6d5"     # Green
+    removed_bg_color: str = "#fed7d7"   # Red
+    modified_bg_color: str = "#fef5e7"  # Yellow
+    unchanged_bg_color: str = "#f8f9fa" # Gray
+
+
+def normalize_tool_call_content(content: str, config: Optional[HtmlDiffConfig] = None) -> str:
+    """Normalize tool call content for consistent diff comparison.
+
+    Eliminates false highlights caused by formatting differences while
+    preserving actual content differences.
+
+    Normalization steps:
+    1. Parse JSON/Python dict format
+    2. Sort dictionary keys alphabetically
+    3. Convert Python booleans (True/False) to JSON (true/false)
+    4. Apply consistent JSON formatting
+    5. Handle embedded dicts in text strings
+
+    Args:
+        content: String containing tool call data (JSON, Python dict, or mixed)
+        config: Optional HtmlDiffConfig for normalization settings
+
+    Returns:
+        Normalized string with consistent formatting
+
+    Example:
+        >>> normalize_tool_call_content('{"query": "email", "debug": true}')
+        '{"debug": true, "query": "email"}'
+
+        >>> normalize_tool_call_content("{'debug': True, 'query': 'email'}")
+        '{"debug": true, "query": "email"}'
+    """
+    if config is None:
+        config = HtmlDiffConfig()
+
+    if not content or not isinstance(content, str):
+        return str(content) if content else ""
+
+    # Try to extract and normalize JSON/dict content
+    try:
+        # First, try parsing as JSON
+        try:
+            data = json.loads(content)
+        except json.JSONDecodeError:
+            # Try Python literal_eval for Python dict format
+            import ast
+            data = ast.literal_eval(content)
+
+        # Successfully parsed, now normalize
+        # Recursively normalize nested JSON strings
+        def normalize_value(value):
+            """Recursively normalize values, including JSON strings."""
+            if isinstance(value, str):
+                # Try to parse and normalize embedded JSON
+                try:
+                    embedded = json.loads(value)
+                    return json.dumps(normalize_value(embedded), sort_keys=True, ensure_ascii=False)
+                except (json.JSONDecodeError, TypeError):
+                    return value
+            elif isinstance(value, dict):
+                if config.normalize_dict_keys:
+                    return {k: normalize_value(v) for k, v in sorted(value.items())}
+                else:
+                    return {k: normalize_value(v) for k, v in value.items()}
+            elif isinstance(value, list):
+                return [normalize_value(item) for item in value]
+            else:
+                return value
+
+        normalized_data = normalize_value(data)
+
+        if isinstance(normalized_data, dict):
+            if config.normalize_json_format:
+                # Consistent JSON formatting with 2-space indent
+                return json.dumps(normalized_data, indent=2, sort_keys=True, ensure_ascii=False)
+            else:
+                return json.dumps(normalized_data, sort_keys=True, ensure_ascii=False)
+        else:
+            # Not a dict, just return as JSON
+            return json.dumps(normalized_data, ensure_ascii=False)
+
+    except (json.JSONDecodeError, ValueError, SyntaxError):
+        # Parsing failed, try to find embedded dict/JSON
+        # Look for dict patterns like {...} in the text
+        dict_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
+        matches = re.findall(dict_pattern, content)
+
+        if matches:
+            # Try to normalize the first embedded dict
+            for match in matches:
+                try:
+                    # Try JSON first
+                    try:
+                        data = json.loads(match)
+                    except json.JSONDecodeError:
+                        # Try Python literal_eval
+                        import ast
+                        data = ast.literal_eval(match)
+
+                    if isinstance(data, dict):
+                        if config.normalize_dict_keys:
+                            sorted_data = {k: data[k] for k in sorted(data.keys())}
+                        else:
+                            sorted_data = data
+
+                        if config.normalize_json_format:
+                            normalized_dict = json.dumps(sorted_data, indent=2, sort_keys=True, ensure_ascii=False)
+                        else:
+                            normalized_dict = json.dumps(sorted_data, ensure_ascii=False)
+
+                        # Replace the original dict with normalized version
+                        content = content.replace(match, normalized_dict)
+                        return content
+                except (json.JSONDecodeError, ValueError, SyntaxError):
+                    continue
+
+        # No valid JSON/dict found, return original with whitespace normalization
+        if config.normalize_whitespace:
+            # Normalize whitespace: multiple spaces/newlines to single space
+            content = re.sub(r'\s+', ' ', content).strip()
+
+        return content
+
 
 class HTMLReporter:
     """Generate interactive HTML reports for MCP evaluation results."""
@@ -482,20 +623,28 @@ class HTMLReporter:
             diff_class = "turn-unchanged"
 
         # T058: Character-level diff for MODIFIED turns
-        content_html = html.escape(content)
-        if diff_type == "MODIFIED" and other_turn:
-            other_content = other_turn.get("content", "")
-            content_html = self._highlight_content_diff(content, other_content, is_current)
+        # Format tool results with JSON pretty-printing and syntax highlighting
+        if turn_type == "TOOL_RESULT":
+            content_html = self._format_tool_result(content)
+            if diff_type == "MODIFIED" and other_turn:
+                other_content = other_turn.get("content", "")
+                # For tool results, compare normalized JSON
+                content_html = self._highlight_content_diff(content, other_content, is_current)
+        else:
+            content_html = html.escape(content)
+            if diff_type == "MODIFIED" and other_turn:
+                other_content = other_turn.get("content", "")
+                content_html = self._highlight_content_diff(content, other_content, is_current)
 
-        # Format timestamp
+        # Format timestamp in YYYY/MM/DD HH:MM:SS format
         timestamp_str = timestamp
         if timestamp:
             try:
                 from datetime import datetime
                 dt = datetime.fromisoformat(str(timestamp).replace('Z', '+00:00'))
-                timestamp_str = dt.strftime("%H:%M:%S")
+                timestamp_str = dt.strftime("%Y/%m/%d %H:%M:%S")
             except:
-                timestamp_str = str(timestamp)[:8]
+                timestamp_str = str(timestamp)[:19]  # Extended to capture more of ISO format
 
         return f'''
         <div class="message {message_class} {diff_class}">
@@ -507,7 +656,15 @@ class HTMLReporter:
         </div>'''
 
     def _highlight_content_diff(self, current: str, baseline: str, is_current: bool) -> str:
-        """T058: Highlight character-level differences using difflib.
+        """T058: Highlight character-level differences using difflib with normalization.
+
+        Normalizes content before comparison to eliminate false highlights caused
+        by formatting differences (dict key order, whitespace, Python vs JSON booleans).
+
+        Uses intelligent diff strategy:
+        - High similarity (>0.95): No highlighting (too similar to be useful)
+        - Medium similarity (0.8-0.95): Word-level diff for natural language
+        - Low similarity (<0.8): Character-level diff for precise differences
 
         Args:
             current: Current content
@@ -519,32 +676,333 @@ class HTMLReporter:
         """
         import difflib
 
-        if current == baseline:
+        # T066: Normalize both sides before comparison to eliminate false highlights
+        normalized_current = normalize_tool_call_content(current)
+        normalized_baseline = normalize_tool_call_content(baseline)
+
+        if normalized_current == normalized_baseline:
+            # Content is identical after normalization, no highlights needed
             return html.escape(current)
 
-        # Use difflib to find differences
-        matcher = difflib.SequenceMatcher(None, baseline, current)
-        result = []
+        # Calculate similarity ratio to choose appropriate diff strategy
+        matcher = difflib.SequenceMatcher(None, normalized_baseline, normalized_current)
+        similarity = matcher.ratio()
 
+        # For very high similarity (>0.95), don't highlight - differences are too minor
+        # and character-level highlighting would be confusing
+        if similarity > 0.95:
+            return html.escape(current if is_current else baseline)
+
+        # For display, we'll use the normalized content so the diff indices match correctly
+        display_current = normalized_current
+        display_baseline = normalized_baseline
+
+        # For natural language text with reasonable similarity (>0.6), use word-level diff
+        # for clearer highlighting. Only use character-level for structured data or
+        # very different text.
+        if similarity > 0.6 and not self._is_structured_data(normalized_current):
+            return self._highlight_word_level_diff(
+                display_current, display_baseline, is_current
+            )
+
+        # For low similarity or structured data, use character-level diff
+        result = []
         for tag, i1, i2, j1, j2 in matcher.get_opcodes():
             if tag == 'equal':
                 # Unchanged text
-                text = current[j1:j2] if is_current else baseline[i1:i2]
+                text = display_current[j1:j2] if is_current else display_baseline[i1:i2]
                 result.append(html.escape(text))
             elif tag == 'replace':
                 # Modified text
-                text = current[j1:j2] if is_current else baseline[i1:i2]
+                text = display_current[j1:j2] if is_current else display_baseline[i1:i2]
                 result.append(f'<span class="diff-highlight">{html.escape(text)}</span>')
             elif tag == 'insert':
                 # Added text (only in current)
                 if is_current:
-                    result.append(f'<span class="diff-highlight">{html.escape(current[j1:j2])}</span>')
+                    result.append(f'<span class="diff-highlight">{html.escape(display_current[j1:j2])}</span>')
             elif tag == 'delete':
                 # Removed text (only in baseline)
                 if not is_current:
-                    result.append(f'<span class="diff-highlight">{html.escape(baseline[i1:i2])}</span>')
+                    result.append(f'<span class="diff-highlight">{html.escape(display_baseline[i1:i2])}</span>')
 
         return ''.join(result)
+
+    def _is_structured_data(self, text: str) -> bool:
+        """Check if text appears to be structured data (JSON, code, etc.).
+
+        Args:
+            text: Text to check
+
+        Returns:
+            True if text appears to be structured data
+        """
+        # Simple heuristics:
+        # - Contains JSON-like structures with braces
+        # - Has high density of special characters
+        # - Starts with array or object markers
+        text_stripped = text.strip()
+        if not text_stripped:
+            return False
+
+        # Check for JSON structures
+        if (text_stripped.startswith('{') or text_stripped.startswith('[') or
+            '{"' in text or '["' in text):
+            return True
+
+        # Check for high density of special characters (>20% of non-whitespace chars)
+        special_chars = sum(1 for c in text if c in '{}[]",:;=<>()\\/')
+        total_chars = len(text.replace(' ', '').replace('\n', ''))
+        if total_chars > 0 and (special_chars / total_chars) > 0.2:
+            return True
+
+        return False
+
+    def _highlight_word_level_diff(self, current: str, baseline: str, is_current: bool) -> str:
+        """Highlight differences at word level for more readable diffs.
+
+        Args:
+            current: Current text
+            baseline: Baseline text
+            is_current: True if rendering current side
+
+        Returns:
+            HTML with word-level diff highlighting
+        """
+        import difflib
+
+        # Split into words while preserving whitespace
+        current_words = current.split()
+        baseline_words = baseline.split()
+
+        # Use SequenceMatcher on word lists
+        matcher = difflib.SequenceMatcher(None, baseline_words, current_words)
+        result = []
+
+        words_to_use = current_words if is_current else baseline_words
+
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag == 'equal':
+                # Unchanged words
+                words = current_words[j1:j2] if is_current else baseline_words[i1:i2]
+                result.append(html.escape(' '.join(words)))
+            elif tag == 'replace':
+                # Modified words
+                words = current_words[j1:j2] if is_current else baseline_words[i1:i2]
+                if words:
+                    result.append(f'<span class="diff-highlight">{html.escape(" ".join(words))}</span>')
+            elif tag == 'insert':
+                # Added words (only in current)
+                if is_current and j1 < j2:
+                    words = current_words[j1:j2]
+                    result.append(f'<span class="diff-highlight">{html.escape(" ".join(words))}</span>')
+            elif tag == 'delete':
+                # Removed words (only in baseline)
+                if not is_current and i1 < i2:
+                    words = baseline_words[i1:i2]
+                    result.append(f'<span class="diff-highlight">{html.escape(" ".join(words))}</span>')
+
+            # Add space between operations (except at end)
+            if tag != 'delete' or not is_current:
+                if result and not result[-1].endswith(' '):
+                    result.append(' ')
+
+        return ''.join(result).rstrip()
+
+    def _decode_nested_json(self, obj: Any, max_depth: int = 3, current_depth: int = 0) -> Any:
+        """Recursively decode JSON strings within data structures.
+
+        Args:
+            obj: Object to process (can be dict, list, str, or primitive)
+            max_depth: Maximum recursion depth to prevent infinite loops
+            current_depth: Current recursion depth
+
+        Returns:
+            Object with nested JSON strings decoded
+        """
+        if current_depth >= max_depth:
+            return obj
+
+        if isinstance(obj, dict):
+            # Process dictionary values recursively
+            result = {}
+            for key, value in obj.items():
+                # Special handling for "text" field which often contains JSON
+                if key == "text" and isinstance(value, str):
+                    decoded = self._try_decode_json_string(value)
+                    result[key] = self._decode_nested_json(decoded, max_depth, current_depth + 1)
+                else:
+                    result[key] = self._decode_nested_json(value, max_depth, current_depth + 1)
+            return result
+        elif isinstance(obj, list):
+            # Process list items recursively
+            return [self._decode_nested_json(item, max_depth, current_depth + 1) for item in obj]
+        elif isinstance(obj, str):
+            # Try to decode string as JSON
+            decoded = self._try_decode_json_string(obj)
+            if decoded != obj:
+                # Successfully decoded, recurse
+                return self._decode_nested_json(decoded, max_depth, current_depth + 1)
+            return obj
+        else:
+            # Primitive type, return as-is
+            return obj
+
+    def _try_decode_json_string(self, text: str) -> Any:
+        """Try to decode a string as JSON.
+
+        Args:
+            text: String that might contain JSON
+
+        Returns:
+            Decoded object if successful, original string otherwise
+        """
+        if not isinstance(text, str) or not text.strip():
+            return text
+
+        # Only try to decode if it looks like JSON
+        stripped = text.strip()
+        if not (stripped.startswith('{') or stripped.startswith('[')):
+            return text
+
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            # Try Python literal_eval
+            import ast
+            try:
+                return ast.literal_eval(text)
+            except (ValueError, SyntaxError):
+                return text
+
+    def _format_tool_result(self, content: str, max_display_lines: int = 20) -> str:
+        """Format tool result content with JSON pretty-printing and syntax highlighting.
+
+        Args:
+            content: Raw tool result content
+            max_display_lines: Maximum lines to show before collapsing (default: 20)
+
+        Returns:
+            HTML formatted content with optional collapse/expand for long content
+        """
+        if not content:
+            return '<em class="no-content">No content</em>'
+
+        # Try to parse as JSON
+        try:
+            # Handle string representations of lists/dicts
+            parsed = None
+            if content.strip().startswith('[') or content.strip().startswith('{'):
+                try:
+                    parsed = json.loads(content)
+                except json.JSONDecodeError:
+                    # Try Python literal_eval
+                    import ast
+                    try:
+                        parsed = ast.literal_eval(content)
+                    except (ValueError, SyntaxError):
+                        pass
+
+            if parsed is not None:
+                # Decode nested JSON strings (e.g., "text" fields with JSON)
+                decoded = self._decode_nested_json(parsed)
+
+                # Pretty print JSON
+                formatted_json = json.dumps(decoded, indent=2, ensure_ascii=False)
+
+                # Apply syntax highlighting
+                highlighted = self._highlight_json(formatted_json)
+
+                # Check if content is long and should be collapsible
+                lines = formatted_json.split('\n')
+                if len(lines) > max_display_lines:
+                    # Create collapsible content
+                    preview_lines = lines[:max_display_lines]
+                    preview_json = '\n'.join(preview_lines)
+                    preview_highlighted = self._highlight_json(preview_json)
+
+                    # Generate unique ID for this collapsible section
+                    import hashlib
+                    content_id = hashlib.md5(content.encode()).hexdigest()[:8]
+
+                    return f'''
+                    <div class="json-result">
+                        <div class="json-preview" id="preview-{content_id}">
+                            <pre class="json-content">{preview_highlighted}
+<span class="json-truncated">... ({len(lines) - max_display_lines} more lines)</span></pre>
+                            <button class="json-expand-btn" onclick="document.getElementById('preview-{content_id}').style.display='none'; document.getElementById('full-{content_id}').style.display='block';">
+                                ▼ Show full output ({len(lines)} lines)
+                            </button>
+                        </div>
+                        <div class="json-full" id="full-{content_id}" style="display: none;">
+                            <pre class="json-content">{highlighted}</pre>
+                            <button class="json-collapse-btn" onclick="document.getElementById('full-{content_id}').style.display='none'; document.getElementById('preview-{content_id}').style.display='block';">
+                                ▲ Collapse
+                            </button>
+                        </div>
+                    </div>
+                    '''
+                else:
+                    # Short content, no collapse needed
+                    return f'<pre class="json-content">{highlighted}</pre>'
+            else:
+                # Not JSON, return escaped plain text
+                return f'<pre class="plain-content">{html.escape(content)}</pre>'
+
+        except Exception:
+            # Fallback to plain text
+            return f'<pre class="plain-content">{html.escape(content)}</pre>'
+
+    def _highlight_json(self, json_str: str) -> str:
+        """Apply simple syntax highlighting to JSON string.
+
+        Args:
+            json_str: JSON string to highlight
+
+        Returns:
+            HTML with syntax highlighting spans
+        """
+        import re
+
+        # Escape HTML first
+        highlighted = html.escape(json_str)
+
+        # Highlight different JSON elements in specific order
+        # 1. String values (quoted strings after colon) - must be done before keys
+        highlighted = re.sub(
+            r':\s*&quot;([^&]*)&quot;',
+            r': <span class="json-string">&quot;\1&quot;</span>',
+            highlighted
+        )
+
+        # 2. Keys (quoted strings followed by colon)
+        highlighted = re.sub(
+            r'&quot;([^&]+)&quot;(\s*)(:)',
+            r'<span class="json-key">&quot;\1&quot;</span>\2<span class="json-punctuation">:</span>',
+            highlighted
+        )
+
+        # 3. Numbers
+        highlighted = re.sub(
+            r'\b(\d+\.?\d*)\b',
+            r'<span class="json-number">\1</span>',
+            highlighted
+        )
+
+        # 4. Booleans and null
+        highlighted = re.sub(
+            r'\b(true|false|null)\b',
+            r'<span class="json-keyword">\1</span>',
+            highlighted
+        )
+
+        # 5. Brackets and braces
+        highlighted = re.sub(
+            r'([{}\[\]])',
+            r'<span class="json-punctuation">\1</span>',
+            highlighted
+        )
+
+        return highlighted
 
     def _generate_comparison_html(self, 
                                 current_data: Dict[str, Any], 
@@ -1708,6 +2166,80 @@ body {
     word-wrap: break-word;
     font-size: 0.9em;
     line-height: 1.4;
+}
+
+/* JSON formatting and syntax highlighting */
+.json-content, .plain-content {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+    overflow-x: auto;
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 0.85em;
+    line-height: 1.5;
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.json-result {
+    margin: 4px 0;
+}
+
+.json-key {
+    color: #0066cc;
+    font-weight: 600;
+}
+
+.json-string {
+    color: #22863a;
+    word-break: break-all;
+    display: inline-block;
+    max-width: 100%;
+}
+
+.json-number {
+    color: #005cc5;
+}
+
+.json-keyword {
+    color: #d73a49;
+    font-weight: 600;
+}
+
+.json-punctuation {
+    color: #6a737d;
+}
+
+.json-truncated {
+    color: #6a737d;
+    font-style: italic;
+    display: block;
+    margin-top: 4px;
+}
+
+.json-expand-btn, .json-collapse-btn {
+    background: #3182ce;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+    margin-top: 8px;
+    transition: background 0.2s;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.json-expand-btn:hover, .json-collapse-btn:hover {
+    background: #2c5aa0;
+}
+
+.no-content {
+    color: #a0aec0;
+    font-style: italic;
 }
 
 /* T023: Styles for dialog turn cards */

@@ -1,0 +1,41 @@
+enabled: true
+name: "Update Server Environment Variables"
+description: "Test updating server environment variables using env_json parameter with full replacement semantics. Verifies env vars are actually passed to the server process."
+config_file: "configs/minimal_config.json"
+user_intent: "Update my everything-2 server to add environment variable TEST_VAR with value 'hello_world'. Then verify the update was applied by listing servers and calling printEnv tool to confirm the env var is available inside the server."
+
+expected_trajectory:
+  - action: "list_servers_before"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "list"
+  - action: "update_env_vars"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "patch"
+      name: "everything-2"
+      env_json: "{\"TEST_VAR\": \"hello_world\"}"
+  - action: "verify_config_update"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "list"
+  - action: "verify_env_in_server"
+    tool: "mcp__mcpproxy__call_tool"
+    args:
+      tool_name: "everything-2:printEnv"
+
+success_criteria:
+  - "mcp__mcpproxy__upstream_servers"
+  - "everything-2"
+  - "patch"
+  - "updated"
+  - "TEST_VAR"
+  - "hello_world"
+  - "printEnv"
+
+tags:
+  - "server_management"
+  - "configuration"
+  - "env_vars"
+  - "update_operation"
+  - "issue_182"

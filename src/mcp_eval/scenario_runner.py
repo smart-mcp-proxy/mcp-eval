@@ -4,10 +4,11 @@ import asyncio
 import json
 import yaml
 import subprocess
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, Literal
 from datetime import datetime
 from pathlib import Path
 import traceback
+from dataclasses import dataclass
 
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 from rich.console import Console
@@ -21,6 +22,251 @@ from .dialog_models import DialogTurn, TurnType, Actor, SessionStatus
 from .agents import UserAgent, AIAgent
 
 console = Console()
+
+
+@dataclass
+class ToolCallComparison:
+    """Comparison between expected and actual tool call."""
+    invocation_number: int
+    tool_name_expected: str
+    tool_name_actual: str
+    tool_name_match: bool
+    parameter_comparisons: List[Any]  # List[ParameterComparison]
+    overall_similarity: float
+    weighted_similarity: float
+
+    @property
+    def has_divergence(self) -> bool:
+        return self.overall_similarity < 0.8
+
+
+@dataclass
+class BaselineValidationResult:
+    """Result of validating baseline against expected trajectory."""
+    scenario_name: str
+    overall_similarity: float
+    validation_status: Literal["EXACT_MATCH", "MINOR_DIVERGENCE", "MAJOR_DIVERGENCE"]
+    tool_call_comparisons: List[ToolCallComparison]
+    warnings: List[str]
+    timestamp: datetime
+
+    @property
+    def has_warnings(self) -> bool:
+        return self.overall_similarity < 0.8
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "scenario_name": self.scenario_name,
+            "overall_similarity": self.overall_similarity,
+            "validation_status": self.validation_status,
+            "tool_call_comparisons": [
+                {
+                    "invocation_number": comp.invocation_number,
+                    "tool_name_expected": comp.tool_name_expected,
+                    "tool_name_actual": comp.tool_name_actual,
+                    "tool_name_match": comp.tool_name_match,
+                    "overall_similarity": comp.overall_similarity,
+                    "weighted_similarity": comp.weighted_similarity
+                }
+                for comp in self.tool_call_comparisons
+            ],
+            "warnings": self.warnings,
+            "timestamp": self.timestamp.isoformat()
+        }
+
+
+def validate_similarity_threshold(threshold: Optional[float]) -> float:
+    """Validate and return similarity threshold with default.
+
+    Args:
+        threshold: Optional threshold value from scenario YAML
+
+    Returns:
+        Validated threshold (0.8 default if None)
+
+    Raises:
+        ValueError: If threshold is outside valid range [0.0, 1.0]
+    """
+    if threshold is None:
+        return 0.8
+
+    if not isinstance(threshold, (int, float)):
+        raise ValueError(f"similarity_threshold must be a number, got {type(threshold).__name__}")
+
+    if not (0.0 <= threshold <= 1.0):
+        raise ValueError(f"similarity_threshold must be between 0.0 and 1.0, got {threshold}")
+
+    return float(threshold)
+
+
+def validate_baseline_against_expected(
+    scenario_name: str,
+    expected_trajectory: List[Dict[str, Any]],
+    actual_tool_calls: List[Dict[str, Any]],
+    threshold: float = 0.8
+) -> BaselineValidationResult:
+    """Validate baseline execution against expected trajectory.
+
+    Args:
+        scenario_name: Name of the scenario
+        expected_trajectory: List of expected tool calls from YAML
+        actual_tool_calls: List of actual tool calls from execution
+        threshold: Warning threshold (default 0.8)
+
+    Returns:
+        BaselineValidationResult with warnings if similarity < threshold
+    """
+    from .similarity import calculate_tool_call_similarity
+
+    warnings = []
+    tool_call_comparisons = []
+
+    # Check tool call count
+    expected_count = len(expected_trajectory)
+    actual_count = len(actual_tool_calls)
+
+    if expected_count != actual_count:
+        warnings.append(
+            f"Tool call count mismatch: expected {expected_count}, got {actual_count}"
+        )
+
+    # Compare each tool call
+    max_len = max(expected_count, actual_count)
+    similarities = []
+
+    for i in range(max_len):
+        expected_call = expected_trajectory[i] if i < expected_count else None
+        actual_call = actual_tool_calls[i] if i < actual_count else None
+
+        if expected_call is None:
+            # Extra actual call
+            tool_name = actual_call.get("tool_name", "unknown")
+            similarities.append(0.0)
+            comparison = ToolCallComparison(
+                invocation_number=i + 1,
+                tool_name_expected="",
+                tool_name_actual=tool_name,
+                tool_name_match=False,
+                parameter_comparisons=[],
+                overall_similarity=0.0,
+                weighted_similarity=0.0
+            )
+            tool_call_comparisons.append(comparison)
+            continue
+
+        if actual_call is None:
+            # Missing actual call
+            tool_name = expected_call.get("tool", "unknown")
+            similarities.append(0.0)
+            comparison = ToolCallComparison(
+                invocation_number=i + 1,
+                tool_name_expected=tool_name,
+                tool_name_actual="",
+                tool_name_match=False,
+                parameter_comparisons=[],
+                overall_similarity=0.0,
+                weighted_similarity=0.0
+            )
+            tool_call_comparisons.append(comparison)
+            continue
+
+        # Convert expected format to actual format for comparison
+        expected_for_comparison = {
+            "tool_name": expected_call.get("tool", ""),
+            "tool_input": expected_call.get("args", {})
+        }
+
+        # Calculate similarity
+        similarity = calculate_tool_call_similarity(expected_for_comparison, actual_call)
+        similarities.append(similarity)
+
+        tool_name_match = expected_for_comparison["tool_name"] == actual_call.get("tool_name", "")
+
+        comparison = ToolCallComparison(
+            invocation_number=i + 1,
+            tool_name_expected=expected_for_comparison["tool_name"],
+            tool_name_actual=actual_call.get("tool_name", ""),
+            tool_name_match=tool_name_match,
+            parameter_comparisons=[],  # Could be enhanced later
+            overall_similarity=similarity,
+            weighted_similarity=similarity
+        )
+        tool_call_comparisons.append(comparison)
+
+        # Generate warnings for low similarity
+        if similarity < threshold:
+            expected_args = expected_for_comparison.get("tool_input", {})
+            actual_args = actual_call.get("tool_input", {})
+            warnings.append(
+                f"Tool call {i + 1}: {expected_for_comparison['tool_name']} - "
+                f"similarity {similarity:.2f} (expected: {expected_args}, actual: {actual_args})"
+            )
+
+    # Calculate overall similarity
+    overall_similarity = sum(similarities) / len(similarities) if similarities else 1.0
+
+    # Determine validation status
+    if overall_similarity == 1.0:
+        validation_status = "EXACT_MATCH"
+    elif overall_similarity >= threshold:
+        validation_status = "MINOR_DIVERGENCE"
+    else:
+        validation_status = "MAJOR_DIVERGENCE"
+
+    return BaselineValidationResult(
+        scenario_name=scenario_name,
+        overall_similarity=overall_similarity,
+        validation_status=validation_status,
+        tool_call_comparisons=tool_call_comparisons,
+        warnings=warnings,
+        timestamp=datetime.now()
+    )
+
+
+def display_validation_warnings(result: BaselineValidationResult, verbose: bool = False) -> None:
+    """Display baseline validation warnings to console.
+
+    Args:
+        result: Validation result to display
+        verbose: If True, show detailed parameter comparisons
+    """
+    if not result.has_warnings:
+        console.print("✓ [green]Baseline validation: EXACT_MATCH[/green]")
+        return
+
+    # Display warning header
+    status_color = "yellow" if result.validation_status == "MINOR_DIVERGENCE" else "red"
+    console.print()
+    console.print(f"⚠️  [bold {status_color}]Baseline Validation Warning for \"{result.scenario_name}\"[/bold {status_color}]")
+    console.print("━" * 80)
+    console.print(f"Overall Similarity: {result.overall_similarity:.2f} ({result.validation_status})")
+    console.print()
+
+    # Display tool call comparisons
+    for comp in result.tool_call_comparisons:
+        if comp.has_divergence:
+            console.print(f"Invocation {comp.invocation_number}: {comp.tool_name_expected}")
+            console.print(f"  Expected: {comp.tool_name_expected}")
+            console.print(f"  Recorded: {comp.tool_name_actual}")
+            console.print(f"  Similarity: {comp.overall_similarity:.2f}")
+            console.print()
+
+    # Display warnings
+    if result.warnings:
+        console.print("[bold]Warnings:[/bold]")
+        for warning in result.warnings:
+            console.print(f"  • {warning}")
+        console.print()
+
+    # Display recommendations
+    console.print("⚠️  [bold]Recommendation:[/bold] Review baseline divergence. Consider:")
+    console.print("    1. Updating expected_trajectory in YAML to match recorded behavior")
+    console.print("    2. Re-recording baseline if AI agent behavior is incorrect")
+    console.print("    3. Adjusting scenario user_intent to be more specific")
+    console.print("━" * 80)
+    console.print()
+
 
 class FailureAwareScenarioRunner:
     """Scenario runner with enhanced failure detection and human validation reporting."""
@@ -542,6 +788,33 @@ class FailureAwareScenarioRunner:
 
             # Analyze execution results
             self._analyze_execution_results(execution_data)
+
+            # Validate baseline against expected trajectory (T024-T025)
+            if mode == "baseline" and expected_trajectory:
+                # Get threshold from scenario data
+                threshold = validate_similarity_threshold(
+                    scenario_data.get("similarity_threshold")
+                )
+
+                # Extract tool calls summary from execution data
+                tool_calls_summary = execution_data.get("tool_calls_summary", [])
+
+                # Validate baseline
+                validation_result = validate_baseline_against_expected(
+                    scenario_name=scenario_name,
+                    expected_trajectory=expected_trajectory,
+                    actual_tool_calls=tool_calls_summary,
+                    threshold=threshold
+                )
+
+                # Save validation result in execution data (T025)
+                execution_data["baseline_validation"] = validation_result.to_dict()
+
+                # Display warnings (T026-T030)
+                if validation_result.has_warnings:
+                    display_validation_warnings(validation_result, verbose=True)
+                else:
+                    console.print("✓ [green]Baseline matches expected trajectory[/green]")
 
             # Generate human validation report
             if mode == "baseline":

@@ -432,6 +432,7 @@ grep "8081" mcp_servers.json || echo "ERROR: Wrong port in config"
 ## Active Technologies
 - Python 3.11+ + click (CLI), rich (console output), pydantic (data validation), existing html_reporter.py module (004-aggregated-test-reports)
 - File system - read detailed_log.json files, write HTML reports to reports/ directory (004-aggregated-test-reports)
+- File-based (baselines/, scenarios/, comparison_results/, reports/) (006-fix-comparison-algorithm)
 
 ## Recent Changes
 - 004-aggregated-test-reports: Added Python 3.11+ + click (CLI), rich (console output), pydantic (data validation), existing html_reporter.py module

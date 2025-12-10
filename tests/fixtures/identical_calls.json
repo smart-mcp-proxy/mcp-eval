@@ -1,0 +1,18 @@
+{
+  "description": "Test fixture for identical tool calls (similarity = 1.0)",
+  "call1": {
+    "tool_name": "mcp__mcpproxy__retrieve_tools",
+    "tool_input": {
+      "query": "email",
+      "debug": true
+    }
+  },
+  "call2": {
+    "tool_name": "mcp__mcpproxy__retrieve_tools",
+    "tool_input": {
+      "query": "email",
+      "debug": true
+    }
+  },
+  "expected_similarity": 1.0
+}

@@ -1607,19 +1607,28 @@ class HTMLReporter:
                 <pre class="json-code"><code class="language-json">{full_result}</code></pre>
             """
         
-        # Determine tool category for filtering
+        # Determine tool category for filtering (FR-020, FR-024)
         tool_class = ""
+        tool_badge = ""
+        tool_icon = "🔧"
         if tool_name == "TodoWrite":
             tool_class = "tool-todowrite"
+        elif tool_name.startswith("api_v1_") or tool_name == "healthz":
+            # Control server tool (FR-020, FR-024 - visually differentiated)
+            tool_class = "tool-ctrl"
+            tool_badge = '<span class="tool-badge ctrl-badge">CTRL</span>'
+            tool_icon = "⚙️"  # Gear icon for control tools
         elif not tool_name.startswith("mcp__"):
             tool_class = "tool-non-mcp"
         else:
             tool_class = "tool-mcp"
-        
+            tool_badge = '<span class="tool-badge mcp-badge">MCP</span>'
+
         return f"""
         <div class="message tool-message {tool_class}">
             <div class="tool-header" onclick="toggleToolCall('{tool_id}')">
-                <span class="tool-icon">🔧</span>
+                <span class="tool-icon">{tool_icon}</span>
+                {tool_badge}
                 <span class="tool-name">{html.escape(tool_name)}</span>
                 <span class="tool-params">({param_preview})</span>
                 {similarity_badge}
@@ -2355,6 +2364,11 @@ body {
 
 .mcp-badge {
     background: #2c5282;
+    color: white;
+}
+
+.ctrl-badge {
+    background: #9f7aea;  /* Purple for control tools (FR-020, FR-024) */
     color: white;
 }
 

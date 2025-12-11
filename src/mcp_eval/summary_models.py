@@ -76,3 +76,90 @@ class TestRunSummary(BaseModel):
     def total_duration(self) -> float:
         """Calculate total execution time across all scenarios."""
         return sum(s.duration_seconds for s in self.scenario_summaries)
+
+
+class ToolSummary(BaseModel):
+    """Minimal tool call summary for compact reports.
+
+    Used in CompactSummary to represent a single tool call without
+    full details, keeping token count under 500 for AI agent consumption.
+    """
+
+    name: str = Field(..., max_length=40, description="Tool name (truncated to 40 chars)")
+    status: str = Field(..., pattern=r"^(OK|ERROR|TIMEOUT)$", description="Execution status")
+
+    def format_line(self, prefix: str = "[AGENT]") -> str:
+        """Format as single line for compact report.
+
+        Args:
+            prefix: Badge prefix, e.g., "[AGENT]" or "[CTRL]"
+
+        Returns:
+            Formatted line like "[AGENT] tool_name -> OK"
+        """
+        return f"{prefix} {self.name} -> {self.status}"
+
+
+class CompactSummary(BaseModel):
+    """Token-efficient summary report for AI agent consumption.
+
+    Designed to be under 500 tokens for typical scenarios, parseable
+    by AI agents, with clear visual distinction between control and
+    agent tool calls.
+
+    Format:
+        # Scenario: <name>
+        Status: PASSED | Score: 0.95
+
+        ## Tool Calls
+        [AGENT] mcp__mcpproxy__upstream_servers(add) -> OK
+        [CTRL] api_v1_servers_id_unquarantine(server) -> OK
+
+        ## Errors
+        None
+    """
+
+    scenario_name: str = Field(..., description="Scenario name")
+    status: str = Field(..., pattern=r"^(PASSED|FAILED|ERROR)$", description="Overall status")
+    similarity_score: float = Field(..., ge=0.0, le=1.0, description="Trajectory similarity score")
+    agent_tools: List[ToolSummary] = Field(default_factory=list, description="Agent MCP tool calls")
+    control_tools: List[ToolSummary] = Field(default_factory=list, description="Control MCP tool calls")
+    errors: List[str] = Field(default_factory=list, description="Error messages (truncated to 100 chars)")
+
+    @field_validator("errors")
+    @classmethod
+    def truncate_errors(cls, v: List[str]) -> List[str]:
+        """Truncate error messages to 100 characters."""
+        return [e[:100] + "..." if len(e) > 100 else e for e in v]
+
+    def to_text(self) -> str:
+        """Generate compact text report.
+
+        Returns:
+            Multi-line text suitable for AI agent parsing,
+            designed to be under 500 tokens.
+        """
+        lines = [
+            f"# Scenario: {self.scenario_name}",
+            f"Status: {self.status} | Score: {self.similarity_score:.2f}",
+            "",
+            "## Tool Calls",
+        ]
+
+        if not self.agent_tools and not self.control_tools:
+            lines.append("None")
+        else:
+            for tool in self.agent_tools:
+                lines.append(tool.format_line("[AGENT]"))
+            for tool in self.control_tools:
+                lines.append(tool.format_line("[CTRL]"))
+
+        lines.append("")
+        lines.append("## Errors")
+        if not self.errors:
+            lines.append("None")
+        else:
+            for error in self.errors:
+                lines.append(f"- {error}")
+
+        return "\n".join(lines)

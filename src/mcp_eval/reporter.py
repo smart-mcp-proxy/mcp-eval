@@ -1,10 +1,15 @@
-"""Report generation for MCP evaluations."""
+"""Report generation for MCP evaluations.
+
+FR-022: detailed_log.json includes control server calls with distinct types
+FR-023: trajectory.txt includes control action markers [CTRL]
+"""
 
 import json
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from dataclasses import asdict, dataclass
 from .evaluator import ComparisonResult
+from .dialog_models import TurnType
 
 # Define ScenarioResult locally since it's needed for compatibility
 @dataclass
@@ -251,5 +256,84 @@ class ReportGenerator:
                 recommendations.append(
                     f"High average execution time ({avg_time:.1f}s). Consider optimizing scenarios or MCP configuration."
                 )
-        
+
         return recommendations
+
+    def generate_trajectory_text(self, session_data: Dict[str, Any]) -> str:
+        """Generate trajectory.txt with control action markers (FR-023).
+
+        Args:
+            session_data: Session export data including turns
+
+        Returns:
+            Human-readable trajectory text with [CTRL] markers
+        """
+        lines = []
+        scenario = session_data.get("scenario", {})
+
+        # Header
+        lines.append(f"# Scenario: {scenario.get('name', 'unknown')}")
+        lines.append(f"# User Intent: {scenario.get('user_intent', '')}")
+        lines.append("")
+
+        # Process turns
+        for turn in session_data.get("turns", []):
+            turn_type = turn.get("turn_type", "")
+            content = turn.get("content", "")
+            metadata = turn.get("metadata", {})
+
+            if turn_type == "USER_MESSAGE":
+                lines.append(f"USER: {content}")
+                lines.append("")
+
+            elif turn_type == "AGENT_MESSAGE":
+                lines.append(f"AGENT: {content}")
+                lines.append("")
+
+            elif turn_type == "TOOL_CALL":
+                tool_name = metadata.get("tool_name", "unknown")
+                tool_input = metadata.get("tool_input", {})
+                lines.append(f"[AGENT] TOOL_CALL: {tool_name}({tool_input})")
+
+            elif turn_type == "TOOL_RESULT":
+                is_error = metadata.get("is_error", False)
+                prefix = "[AGENT] TOOL_ERROR" if is_error else "[AGENT] TOOL_RESULT"
+                # Truncate long results
+                content_preview = content[:200] + "..." if len(content) > 200 else content
+                lines.append(f"{prefix}: {content_preview}")
+                lines.append("")
+
+            elif turn_type == "CONTROL_TOOL_CALL":
+                tool_name = metadata.get("tool_name", "unknown")
+                tool_input = metadata.get("tool_input", {})
+                trigger = metadata.get("trigger", "")
+                lines.append(f"[CTRL] TOOL_CALL: {tool_name}({tool_input})")
+                if trigger:
+                    lines.append(f"       Trigger: {trigger}")
+
+            elif turn_type == "CONTROL_TOOL_RESULT":
+                is_error = metadata.get("is_error", False)
+                prefix = "[CTRL] TOOL_ERROR" if is_error else "[CTRL] TOOL_RESULT"
+                content_preview = content[:200] + "..." if len(content) > 200 else content
+                lines.append(f"{prefix}: {content_preview}")
+                lines.append("")
+
+            elif turn_type == "CLARIFICATION_REQUEST":
+                lines.append(f"CLARIFICATION_REQUEST: {content}")
+                lines.append("")
+
+            elif turn_type == "CLARIFICATION_RESPONSE":
+                lines.append(f"CLARIFICATION_RESPONSE: {content}")
+                lines.append("")
+
+        # Footer with status
+        status = session_data.get("status", "UNKNOWN")
+        lines.append("")
+        lines.append(f"# Status: {status}")
+
+        # Control action summary if any
+        control_calls = session_data.get("control_tool_calls", [])
+        if control_calls:
+            lines.append(f"# Control Actions: {len(control_calls)} executed")
+
+        return "\n".join(lines)

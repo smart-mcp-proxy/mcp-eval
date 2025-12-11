@@ -74,6 +74,5 @@ list_upstream_servers.py
 test_list_servers.py
 
 # Project-specific
-.claude/
 .specify/
 .mcp.json

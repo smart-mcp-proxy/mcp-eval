@@ -901,6 +901,17 @@ class FailureAwareScenarioRunner:
                         console.print(f"❌ [red]Tool Error[/red]")
                     else:
                         console.print(f"✅ [green]Tool Success[/green]")
+                elif turn_type == "CONTROL_TOOL_CALL":
+                    tool_name = turn_dict.get("metadata", {}).get("tool_name", "unknown")
+                    trigger = turn_dict.get("metadata", {}).get("trigger", "")
+                    console.print(f"⚙️  [magenta][CTRL] {tool_name}[/magenta] (trigger: {trigger})")
+                elif turn_type == "CONTROL_TOOL_RESULT":
+                    is_error = turn_dict.get("metadata", {}).get("is_error", False)
+                    success = turn_dict.get("metadata", {}).get("success", True)
+                    if is_error or not success:
+                        console.print(f"❌ [red][CTRL] Error[/red]")
+                    else:
+                        console.print(f"✅ [magenta][CTRL] Success[/magenta]")
 
             # Check for early stopping based on critical failures
             if self._has_critical_failure_in_turns(dialog_turns):

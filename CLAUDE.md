@@ -433,6 +433,8 @@ grep "8081" mcp_servers.json || echo "ERROR: Wrong port in config"
 - Python 3.11+ + click (CLI), rich (console output), pydantic (data validation), existing html_reporter.py module (004-aggregated-test-reports)
 - File system - read detailed_log.json files, write HTML reports to reports/ directory (004-aggregated-test-reports)
 - File-based (baselines/, scenarios/, comparison_results/, reports/) (006-fix-comparison-algorithm)
+- Python 3.11+ + FastMCP (MCP server framework), httpx (async HTTP client), claude-agent-sdk>=0.1.6, click>=8.2.1, pydantic>=2.11.7, rich>=14.1.0 (007-mcpproxy-control-server)
+- File-based (baselines/, scenarios/, reports/, detailed_log.json) (007-mcpproxy-control-server)
 
 ## Recent Changes
 - 004-aggregated-test-reports: Added Python 3.11+ + click (CLI), rich (console output), pydantic (data validation), existing html_reporter.py module

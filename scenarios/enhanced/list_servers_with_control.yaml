@@ -1,0 +1,34 @@
+# Enhanced Scenario: List Servers with Control Action Verification
+# This scenario lists servers via MCP and then verifies via control REST API
+#
+# Demonstrates: User Role control action that runs after agent tool call
+
+name: "List Servers with Control Verification"
+description: "Agent lists MCP servers, then User Role verifies via REST API"
+
+user_intent: "List all MCP servers and show their status"
+
+expected_trajectory:
+  - action: "list_servers"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args: {}
+
+# User Role control actions - verify agent's result via REST API
+user_control_actions:
+  - trigger: "after_tool_1"
+    action: "verify_servers_via_api"
+    tool: "api_v1_servers"
+    args: {}
+    expected_result:
+      success: true
+
+success_criteria:
+  - "servers"
+  - "everything"
+
+tags:
+  - server_management
+  - control_actions
+  - enhanced
+
+enabled: true

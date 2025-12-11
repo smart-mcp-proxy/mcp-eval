@@ -2,17 +2,28 @@
 
 Implements Constitution Principle I: Dual-Agent Dialog Engine Architecture
 with separate User Agent and AI Agent roles.
+
+FR-006: User Role has access to control MCP server
+FR-007: Agent Role does NOT have access to control MCP server
 """
 
 import asyncio
+import json
+import os
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 import yaml
 
 from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions
 
-from .dialog_models import DialogTurn, TurnType, Actor
+from .dialog_models import (
+    DialogTurn, TurnType, Actor,
+    UserControlAction, ControlToolCall, ControlToolResult,
+    parse_user_control_actions,
+)
 
 
 @dataclass
@@ -24,12 +35,26 @@ class UserAgent:
     - Responds to clarification questions from the AI agent
     - Does NOT directly invoke MCP tools (human-only behavior)
     - Evaluates whether the AI agent achieved goals and used tools correctly
+
+    FR-006: User Role has access to control MCP server for test environment manipulation.
+    Control actions are defined in scenario's user_control_actions field.
     """
     scenario: Dict[str, Any]
     current_turn: int = 0
     clarification_responses: List[Dict[str, str]] = field(default_factory=list)
     conversation_history: List[DialogTurn] = field(default_factory=list)
     max_turns: int = 50
+    # Control server support (FR-006)
+    control_actions: List[UserControlAction] = field(default_factory=list)
+    executed_control_actions: List[str] = field(default_factory=list)  # Track executed triggers
+    control_tool_calls: List[ControlToolCall] = field(default_factory=list)
+    control_tool_results: List[ControlToolResult] = field(default_factory=list)
+    agent_tool_call_count: int = 0  # Track agent tool calls for after_tool_N triggers
+
+    def __post_init__(self):
+        """Parse control actions from scenario."""
+        if not self.control_actions:
+            self.control_actions = parse_user_control_actions(self.scenario)
 
     def issue_intent(self) -> DialogTurn:
         """Create USER_MESSAGE DialogTurn from scenario.user_intent.
@@ -114,6 +139,117 @@ class UserAgent:
         # Success if majority of criteria met
         return len(met_criteria) >= len(success_criteria) * 0.5
 
+    def check_triggers(self, event_type: str, event_data: Optional[Dict[str, Any]] = None) -> List[UserControlAction]:
+        """Check if any control actions should be triggered.
+
+        Args:
+            event_type: Type of event - "tool_call", "tool_result", "quarantine", "error", "completion"
+            event_data: Optional event-specific data (tool name, error message, etc.)
+
+        Returns:
+            List of control actions that should be executed
+        """
+        triggered_actions = []
+
+        for action in self.control_actions:
+            # Skip already executed actions
+            trigger_key = f"{action.trigger}:{action.tool}"
+            if trigger_key in self.executed_control_actions:
+                continue
+
+            # Check trigger conditions
+            should_trigger = False
+
+            if action.trigger.startswith("after_tool_"):
+                # after_tool_N trigger
+                try:
+                    n = int(action.trigger.split("_")[-1])
+                    if event_type == "tool_result" and self.agent_tool_call_count >= n:
+                        should_trigger = True
+                except ValueError:
+                    pass
+
+            elif action.trigger == "after_quarantine":
+                if event_type == "quarantine":
+                    should_trigger = True
+                # Also check if tool result indicates quarantine
+                if event_type == "tool_result" and event_data:
+                    content = str(event_data.get("content", "")).lower()
+                    if "quarantine" in content or "quarantined" in content:
+                        should_trigger = True
+
+            elif action.trigger == "on_error":
+                if event_type == "error":
+                    should_trigger = True
+                if event_type == "tool_result" and event_data and event_data.get("is_error"):
+                    should_trigger = True
+
+            elif action.trigger == "before_completion":
+                if event_type == "completion":
+                    should_trigger = True
+
+            elif action.trigger == "manual":
+                # Manual triggers are handled separately
+                pass
+
+            if should_trigger:
+                triggered_actions.append(action)
+                self.executed_control_actions.append(trigger_key)
+
+        return triggered_actions
+
+    def record_control_call(self, action: UserControlAction) -> ControlToolCall:
+        """Record a control tool call for logging.
+
+        Args:
+            action: The control action being executed
+
+        Returns:
+            ControlToolCall log entry
+        """
+        tool_call = ControlToolCall(
+            timestamp=datetime.now().isoformat(),
+            type="CONTROL_TOOL_CALL",
+            tool_name=action.tool,
+            tool_input=action.args,
+            tool_id=str(uuid.uuid4())[:8],
+        )
+        self.control_tool_calls.append(tool_call)
+        return tool_call
+
+    def record_control_result(
+        self,
+        tool_call: ControlToolCall,
+        success: bool,
+        response: Any,
+        error: Optional[str] = None
+    ) -> ControlToolResult:
+        """Record a control tool result for logging.
+
+        Args:
+            tool_call: The corresponding tool call
+            success: Whether the call succeeded
+            response: The response data
+            error: Optional error message
+
+        Returns:
+            ControlToolResult log entry
+        """
+        result = ControlToolResult(
+            timestamp=datetime.now().isoformat(),
+            type="CONTROL_TOOL_RESULT",
+            tool_use_id=tool_call.tool_id,
+            success=success,
+            response=response,
+            error=error,
+        )
+        self.control_tool_results.append(result)
+        return result
+
+    def increment_tool_count(self):
+        """Increment the agent tool call counter."""
+        self.agent_tool_call_count += 1
+
 
 @dataclass
 class AIAgent:
@@ -124,6 +260,10 @@ class AIAgent:
     - Executes user requests by selecting and invoking appropriate MCP tools
     - MAY ask User agent for clarification when scenario is underspecified
     - MUST NOT know it's in a test scenario (authentic assistant behavior)
+
+    FR-007: Agent Role does NOT have access to control MCP server.
+    The control server is only available to User Role (see UserAgent).
+    AIAgent only accesses mcpproxy via its native MCP interface.
     """
     mcp_config: str
     temperature: float = 0.0

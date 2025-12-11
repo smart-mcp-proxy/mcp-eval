@@ -504,7 +504,12 @@ def get_git_hash() -> Optional[str]:
     is_flag=True,
     help="Stop on first failure"
 )
-def test(scenarios_dir: Path, tag: tuple, scenario: tuple, mcp_config: Path, verbose: bool, fail_fast: bool):
+@click.option(
+    "--compact-report", "-c",
+    is_flag=True,
+    help="Generate compact text summary report (FR-027, FR-028)"
+)
+def test(scenarios_dir: Path, tag: tuple, scenario: tuple, mcp_config: Path, verbose: bool, fail_fast: bool, compact_report: bool):
     """Run MCP evaluation scenarios in pytest-style with compact output.
 
     Generates:
@@ -691,6 +696,28 @@ def test(scenarios_dir: Path, tag: tuple, scenario: tuple, mcp_config: Path, ver
         summary_path.write_text(summary_html, encoding="utf-8")
 
         console.print(f"\n📊 [green]Summary report:[/green] {summary_path}")
+
+        # Generate compact text summary if requested (FR-027, FR-028)
+        if compact_report:
+            from .summary_models import CompactSummary, ToolSummary
+
+            compact_lines = [
+                f"# Test Summary: {len(results)} scenarios",
+                f"Status: {len([r for r in results if r.get('status') == 'PASS'])} PASSED | "
+                f"{len([r for r in results if r.get('status') == 'FAIL'])} FAILED | "
+                f"{len([r for r in results if r.get('status') == 'RECORDED'])} RECORDED",
+                "",
+            ]
+
+            for result in results:
+                compact_lines.append(f"- {result.get('scenario', 'unknown')}: {result.get('status', 'UNKNOWN')}")
+                if result.get('score') is not None:
+                    compact_lines.append(f"  Score: {result.get('score', 0):.2f}")
+
+            compact_text = "\n".join(compact_lines)
+            compact_path = Path("reports") / "summary.txt"
+            compact_path.write_text(compact_text, encoding="utf-8")
+            console.print(f"📄 [green]Compact summary:[/green] {compact_path}")
 
 
 def restart_mcpproxy():

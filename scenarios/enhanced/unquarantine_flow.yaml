@@ -1,0 +1,52 @@
+# Enhanced Scenario: Unquarantine Flow
+# Demonstrates User Role control actions during scenario execution
+#
+# This scenario tests the complete flow:
+# 1. Agent adds a new MCP server to mcpproxy
+# 2. Server is auto-quarantined (security check)
+# 3. User Role (via control action) unquarantines the server
+# 4. Agent can now use the server's tools
+
+name: "Unquarantine Flow"
+description: "Add a server and unquarantine it via User Role control action"
+
+user_intent: |
+  Add a new MCP server called 'test-echo-server' to mcpproxy.
+  The server should use stdio protocol with command 'echo'.
+  After adding, verify the server appears in the server list.
+
+expected_trajectory:
+  - action: "add_server"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "add"
+      name: "test-echo-server"
+      command: "echo"
+      protocol: "stdio"
+  - action: "list_servers"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "list"
+
+# User Role control actions executed during scenario
+# These are NOT visible to the AI Agent
+user_control_actions:
+  - trigger: "after_quarantine"
+    action: "unquarantine_server"
+    tool: "api_v1_servers_id_unquarantine"
+    args:
+      id: "test-echo-server"
+    expected_result:
+      success: true
+
+success_criteria:
+  - "server added"
+  - "test-echo-server"
+
+tags:
+  - security
+  - quarantine
+  - control_actions
+  - enhanced
+
+enabled: true

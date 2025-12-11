@@ -227,14 +227,28 @@ class TrajectoryEvaluator:
         )
     
     def _create_per_invocation_results(
-        self, 
-        current_tools: List[Dict[str, Any]], 
+        self,
+        current_tools: List[Dict[str, Any]],
         baseline_tools: List[Dict[str, Any]]
     ) -> List[InvocationResult]:
-        """Create detailed per-invocation results using similarity calculations."""
-        # Filter to only MCP tool calls
-        current_mcp = [call for call in current_tools if call.get('tool_name', '').startswith('mcp__')]
-        baseline_mcp = [call for call in baseline_tools if call.get('tool_name', '').startswith('mcp__')]
+        """Create detailed per-invocation results using similarity calculations.
+
+        FR-009: Differentiates between control tools and agent tools.
+        Control tools (api_v1_*) are NOT included in trajectory comparison.
+        Only MCP tools (mcp__*) from Agent Role are compared.
+        """
+        # Filter to only MCP tool calls from Agent Role (FR-009)
+        # Exclude control server calls which start with api_v1_*
+        current_mcp = [
+            call for call in current_tools
+            if call.get('tool_name', '').startswith('mcp__')
+            and not call.get('tool_name', '').startswith('api_v1_')
+        ]
+        baseline_mcp = [
+            call for call in baseline_tools
+            if call.get('tool_name', '').startswith('mcp__')
+            and not call.get('tool_name', '').startswith('api_v1_')
+        ]
         
         max_len = max(len(current_mcp), len(baseline_mcp))
         results = []

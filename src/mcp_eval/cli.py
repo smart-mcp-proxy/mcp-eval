@@ -20,6 +20,8 @@ from .evaluator import TrajectoryEvaluator
 from .reporter import ReportGenerator
 from .html_reporter import HTMLReporter, generate_summary_report
 from .summary_models import ScenarioExecutionSummary, ScenarioStatus, TestRunSummary
+from .judge import JudgeAgent, save_assessment_json, generate_markdown_report
+from .judge.agent import get_api_key
 
 # Load environment variables from .env file
 load_dotenv()
@@ -75,7 +77,12 @@ def cli():
     is_flag=True,
     help="Enable verbose output"
 )
-def record(scenario: Path, output: Path, mcp_config: Path, verbose: bool):
+@click.option(
+    "--judge",
+    is_flag=True,
+    help="Analyze baseline immediately after recording"
+)
+def record(scenario: Path, output: Path, mcp_config: Path, verbose: bool, judge: bool):
     """Record a scenario execution with detailed logs."""
     console.print(f"🎬 [bold blue]Recording scenario:[/bold blue] {scenario.name}")
     
@@ -126,6 +133,27 @@ def record(scenario: Path, output: Path, mcp_config: Path, verbose: bool):
     try:
         result = asyncio.run(record_async_inner())
         console.print("✅ [green]Recording completed successfully[/green]")
+
+        # Run judge analysis if requested
+        if judge and get_api_key():
+            console.print("\n🔍 [bold blue]Running judge analysis on baseline...[/bold blue]")
+            try:
+                agent = JudgeAgent(verbose=verbose)
+                assessment = agent.analyze_baseline(output)
+                if assessment:
+                    json_path = save_assessment_json(assessment)
+                    md_path = generate_markdown_report(assessment)
+                    console.print(f"📁 [green]JSON assessment:[/green] {json_path}")
+                    console.print(f"📄 [green]Markdown report:[/green] {md_path}")
+                    if assessment.improvement_suggestions:
+                        console.print(f"💡 [yellow]Found {len(assessment.improvement_suggestions)} improvement suggestions[/yellow]")
+                    else:
+                        console.print("[green]Trajectory appears optimal - no suggestions generated[/green]")
+            except Exception as e:
+                console.print(f"[red]Judge analysis failed: {e}[/red]")
+        elif judge and not get_api_key():
+            console.print("[yellow]Warning: --judge flag specified but no API key set (ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN)[/yellow]")
+
         return result
     except Exception as e:
         console.print(f"❌ [red]Recording failed: {e}[/red]")
@@ -509,7 +537,17 @@ def get_git_hash() -> Optional[str]:
     is_flag=True,
     help="Generate compact text summary report (FR-027, FR-028)"
 )
-def test(scenarios_dir: Path, tag: tuple, scenario: tuple, mcp_config: Path, verbose: bool, fail_fast: bool, compact_report: bool):
+@click.option(
+    "--judge-on-fail",
+    is_flag=True,
+    help="Run judge analysis on failed scenarios"
+)
+@click.option(
+    "--judge-summary",
+    is_flag=True,
+    help="Generate consolidated judge summary after all tests"
+)
+def test(scenarios_dir: Path, tag: tuple, scenario: tuple, mcp_config: Path, verbose: bool, fail_fast: bool, compact_report: bool, judge_on_fail: bool, judge_summary: bool):
     """Run MCP evaluation scenarios in pytest-style with compact output.
 
     Generates:
@@ -645,11 +683,28 @@ def test(scenarios_dir: Path, tag: tuple, scenario: tuple, mcp_config: Path, ver
         )
         scenario_summaries.append(scenario_summary)
         
+        # Run judge analysis on failures if requested
+        if judge_on_fail and status == "FAIL" and get_api_key():
+            console.print(f"   [dim]Running judge analysis...[/dim]")
+            try:
+                agent = JudgeAgent(verbose=verbose)
+                # Find the comparison report for this scenario
+                comp_file = Path("comparison_results") / scenario_rel_path / f"{scenario_name}_comparison.json"
+                if comp_file.exists():
+                    assessment = agent.analyze_comparison(comp_file)
+                    if assessment and assessment.improvement_suggestions:
+                        console.print(f"   [yellow]Judge: {len(assessment.improvement_suggestions)} suggestions[/yellow]")
+                        # Save assessment
+                        save_assessment_json(assessment)
+            except Exception as e:
+                if verbose:
+                    console.print(f"   [dim red]Judge error: {e}[/dim red]")
+
         if status in ["FAIL", "ERROR"]:
             failed_count += 1
             if fail_fast:
                 break
-    
+
     # Print summary
     console.print()
 
@@ -718,6 +773,32 @@ def test(scenarios_dir: Path, tag: tuple, scenario: tuple, mcp_config: Path, ver
             compact_path = Path("reports") / "summary.txt"
             compact_path.write_text(compact_text, encoding="utf-8")
             console.print(f"📄 [green]Compact summary:[/green] {compact_path}")
+
+        # Generate judge summary if requested
+        if judge_summary and failed > 0 and get_api_key():
+            console.print("\n🔍 [bold blue]Generating judge summary for failed scenarios...[/bold blue]")
+            judge_assessments = []
+            agent = JudgeAgent(verbose=verbose)
+
+            # Analyze all failed scenarios
+            failed_scenarios = [s for s in scenario_summaries if s.status == ScenarioStatus.FAILED]
+            for scenario_summary in failed_scenarios:
+                comp_file = Path("comparison_results") / scenario_summary.scenario_path / f"{scenario_summary.scenario_name}_comparison.json"
+                if comp_file.exists():
+                    try:
+                        assessment = agent.analyze_comparison(comp_file)
+                        if assessment:
+                            judge_assessments.append(assessment)
+                            save_assessment_json(assessment)
+                    except Exception as e:
+                        if verbose:
+                            console.print(f"   [dim red]Judge error for {scenario_summary.scenario_name}: {e}[/dim red]")
+
+            if judge_assessments:
+                from .judge.reporter import generate_batch_summary_markdown
+                batch_md = generate_batch_summary_markdown(judge_assessments)
+                console.print(f"📊 [green]Judge summary:[/green] {batch_md}")
+                _display_judge_summary(judge_assessments)
 
 
 def restart_mcpproxy():
@@ -1014,6 +1095,295 @@ def run_scenario_baseline(scenario_file: Path, mcp_config: Path, verbose: bool) 
             "tool_count": 0,
             "duration_seconds": 0.0
         }
+
+
+@cli.command()
+@click.option(
+    "--baseline",
+    type=click.Path(exists=True, path_type=Path),
+    help="Path to baseline directory to analyze"
+)
+@click.option(
+    "--comparison-report",
+    type=click.Path(exists=True, path_type=Path),
+    help="Path to comparison JSON file to analyze"
+)
+@click.option(
+    "--baselines-dir",
+    type=click.Path(exists=True, path_type=Path),
+    help="Analyze all baselines in directory"
+)
+@click.option(
+    "--scenarios-dir",
+    type=click.Path(exists=True, path_type=Path),
+    help="Analyze all comparison reports in directory"
+)
+@click.option(
+    "--threshold",
+    type=float,
+    default=0.8,
+    help="Only analyze scenarios below this score (default: 0.8)"
+)
+@click.option(
+    "--output-format",
+    type=click.Choice(["json", "markdown", "both"]),
+    default="both",
+    help="Output format (default: both)"
+)
+@click.option(
+    "--output-dir",
+    type=click.Path(path_type=Path),
+    help="Directory for output files (default: .judge/assessments)"
+)
+@click.option(
+    "--verbose", "-v",
+    is_flag=True,
+    help="Enable verbose output"
+)
+def judge(
+    baseline: Optional[Path],
+    comparison_report: Optional[Path],
+    baselines_dir: Optional[Path],
+    scenarios_dir: Optional[Path],
+    threshold: float,
+    output_format: str,
+    output_dir: Optional[Path],
+    verbose: bool
+):
+    """Analyze baseline or comparison reports and generate improvement suggestions.
+
+    Uses LLM-based analysis to identify why tool usage deviated from expectations
+    and suggests specific improvements to tool descriptions.
+
+    Examples:
+        # Analyze single baseline
+        mcp-eval judge --baseline baselines/search_tools_baseline/
+
+        # Analyze single comparison
+        mcp-eval judge --comparison-report comparison_results/search_tools_comparison.json
+
+        # Analyze all baselines
+        mcp-eval judge --baselines-dir baselines/
+
+        # Analyze failed comparisons below threshold
+        mcp-eval judge --scenarios-dir comparison_results/ --threshold 0.8
+    """
+    # Validate input - at least one of baseline/comparison/baselines-dir/scenarios-dir required
+    if not any([baseline, comparison_report, baselines_dir, scenarios_dir]):
+        raise click.ClickException(
+            "Must specify --baseline, --comparison-report, --baselines-dir, or --scenarios-dir"
+        )
+
+    # Check for API key
+    if not get_api_key():
+        raise click.ClickException(
+            "Error: No API key found. Set ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN in your environment or .env file."
+        )
+
+    # Create judge agent
+    agent = JudgeAgent(verbose=verbose)
+
+    assessments = []
+
+    # Single baseline analysis
+    if baseline:
+        console.print(f"🔍 [bold blue]Analyzing baseline:[/bold blue] {baseline}")
+        assessment = _run_judge_analysis(agent, "baseline", baseline, verbose)
+        if assessment:
+            assessments.append(assessment)
+
+    # Single comparison analysis
+    if comparison_report:
+        console.print(f"🔍 [bold blue]Analyzing comparison:[/bold blue] {comparison_report}")
+        assessment = _run_judge_analysis(agent, "comparison", comparison_report, verbose)
+        if assessment:
+            assessments.append(assessment)
+
+    # Batch baseline analysis
+    if baselines_dir:
+        console.print(f"🔍 [bold blue]Analyzing baselines in:[/bold blue] {baselines_dir}")
+        baseline_dirs = [d for d in baselines_dir.iterdir() if d.is_dir() and (d / "detailed_log.json").exists()]
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            task = progress.add_task(f"Analyzing {len(baseline_dirs)} baselines...", total=len(baseline_dirs))
+
+            for baseline_path in baseline_dirs:
+                progress.update(task, description=f"Analyzing {baseline_path.name}...")
+                assessment = _run_judge_analysis(agent, "baseline", baseline_path, verbose)
+                if assessment:
+                    assessments.append(assessment)
+                progress.advance(task)
+
+    # Batch comparison analysis with threshold filtering
+    if scenarios_dir:
+        console.print(f"🔍 [bold blue]Analyzing comparisons in:[/bold blue] {scenarios_dir}")
+        comparison_files = list(scenarios_dir.rglob("*_comparison.json"))
+
+        # Filter by threshold
+        filtered_files = []
+        for comp_file in comparison_files:
+            try:
+                with open(comp_file) as f:
+                    comp_data = json.load(f)
+                # Score can be at top level or nested in evaluation_metrics
+                eval_metrics = comp_data.get("evaluation_metrics", {})
+                score = eval_metrics.get("overall_score", comp_data.get("similarity_score", 1.0))
+                if score < threshold:
+                    filtered_files.append(comp_file)
+            except (json.JSONDecodeError, IOError):
+                pass
+
+        console.print(f"   Found {len(filtered_files)} scenarios below threshold {threshold}")
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            task = progress.add_task(f"Analyzing {len(filtered_files)} comparisons...", total=len(filtered_files))
+
+            for comp_file in filtered_files:
+                progress.update(task, description=f"Analyzing {comp_file.stem}...")
+                assessment = _run_judge_analysis(agent, "comparison", comp_file, verbose)
+                if assessment:
+                    assessments.append(assessment)
+                progress.advance(task)
+
+    # Save outputs
+    if assessments:
+        _save_judge_outputs(assessments, output_format, output_dir, verbose)
+        _display_judge_summary(assessments)
+    else:
+        console.print("[yellow]No assessments generated[/yellow]")
+
+
+def _run_judge_analysis(agent: JudgeAgent, analysis_type: str, path: Path, verbose: bool):
+    """Run judge analysis and handle errors.
+
+    Args:
+        agent: JudgeAgent instance.
+        analysis_type: "baseline" or "comparison".
+        path: Path to analyze.
+        verbose: Enable verbose output.
+
+    Returns:
+        JudgeAssessment or None if failed.
+    """
+    try:
+        if analysis_type == "baseline":
+            return agent.analyze_baseline(path)
+        else:
+            return agent.analyze_comparison(path)
+    except FileNotFoundError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        return None
+    except Exception as e:
+        if verbose:
+            console.print(f"[red]Error analyzing {path}: {e}[/red]")
+        else:
+            console.print(f"[red]Error: {path.name} - {str(e)[:50]}[/red]")
+        return None
+
+
+def _save_judge_outputs(assessments: list, output_format: str, output_dir: Optional[Path], verbose: bool):
+    """Save judge assessment outputs.
+
+    Args:
+        assessments: List of JudgeAssessments.
+        output_format: "json", "markdown", or "both".
+        output_dir: Optional output directory.
+        verbose: Enable verbose output.
+    """
+    from .judge.reporter import generate_batch_summary_markdown
+
+    json_paths = []
+    md_paths = []
+
+    for assessment in assessments:
+        if output_format in ["json", "both"]:
+            json_path = save_assessment_json(assessment, output_dir)
+            json_paths.append(json_path)
+            if verbose:
+                console.print(f"   [dim]JSON: {json_path}[/dim]")
+
+        if output_format in ["markdown", "both"]:
+            md_path = generate_markdown_report(assessment)
+            md_paths.append(md_path)
+            if verbose:
+                console.print(f"   [dim]Markdown: {md_path}[/dim]")
+
+    # Generate batch summary if multiple assessments
+    if len(assessments) > 1:
+        batch_md = generate_batch_summary_markdown(assessments)
+        console.print(f"\n📊 [green]Batch summary:[/green] {batch_md}")
+
+    if json_paths:
+        console.print(f"📁 [green]JSON outputs:[/green] {json_paths[0].parent}/")
+    if md_paths:
+        console.print(f"📄 [green]Markdown reports:[/green] {md_paths[0].parent}/")
+
+
+def _display_judge_summary(assessments: list):
+    """Display summary of judge analysis results.
+
+    Args:
+        assessments: List of JudgeAssessments.
+    """
+    from .judge.models import ImprovementPriority
+
+    console.print("\n" + "━" * 50)
+    console.print("[bold]Judge Analysis Summary[/bold]")
+    console.print("━" * 50)
+
+    # Count suggestions by priority
+    priority_counts = {p: 0 for p in ImprovementPriority}
+    total_suggestions = 0
+
+    for assessment in assessments:
+        for sug in assessment.improvement_suggestions:
+            priority_counts[sug.priority] += 1
+            total_suggestions += 1
+
+    # Display table
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("Scenario", style="cyan")
+    table.add_column("Type", style="dim")
+    table.add_column("Score", justify="right")
+    table.add_column("Suggestions", justify="right")
+    table.add_column("Duration", justify="right")
+
+    for assessment in assessments:
+        score_str = f"{assessment.original_score:.2f}" if assessment.original_score else "N/A"
+        sug_counts = {}
+        for sug in assessment.improvement_suggestions:
+            sug_counts[sug.priority] = sug_counts.get(sug.priority, 0) + 1
+
+        sug_summary = ", ".join([
+            f"{count} {p.value.upper()}"
+            for p, count in sug_counts.items()
+            if count > 0
+        ]) or "0"
+
+        table.add_row(
+            assessment.scenario_name,
+            assessment.analysis_type.value,
+            score_str,
+            sug_summary,
+            f"{assessment.duration_seconds:.1f}s"
+        )
+
+    console.print(table)
+
+    # Priority summary
+    console.print(f"\n[bold]Total Suggestions:[/bold] {total_suggestions}")
+    console.print(f"  🔴 Critical: {priority_counts[ImprovementPriority.CRITICAL]}")
+    console.print(f"  🟠 High: {priority_counts[ImprovementPriority.HIGH]}")
+    console.print(f"  🟡 Medium: {priority_counts[ImprovementPriority.MEDIUM]}")
+    console.print(f"  🟢 Low: {priority_counts[ImprovementPriority.LOW]}")
 
 
 if __name__ == "__main__":

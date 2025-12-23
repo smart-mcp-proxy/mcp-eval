@@ -284,7 +284,48 @@ class FailureAwareScenarioRunner:
         
         # Capture mcpproxy-go git hash for baseline tracking
         self.mcpproxy_git_info = self._get_mcpproxy_git_info()
-    
+
+        # Capture mcp-eval version info for stale baseline detection
+        self.mcp_eval_info = self._get_mcp_eval_info()
+
+    def _get_mcp_eval_info(self) -> Dict[str, Any]:
+        """Get mcp-eval version and git info for baseline tracking."""
+        import os
+
+        # Get mcp-eval git info
+        mcp_eval_path = Path(__file__).parent.parent.parent  # src/mcp_eval -> repo root
+
+        info = {
+            "version": "0.1.0",  # Could be read from pyproject.toml
+            "git_hash": "unknown",
+            "git_hash_short": "unknown",
+            "recording_timestamp": datetime.now().isoformat(),
+        }
+
+        try:
+            # Get git hash
+            git_hash = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"],
+                cwd=mcp_eval_path,
+                text=True,
+                stderr=subprocess.DEVNULL
+            ).strip()
+            info["git_hash"] = git_hash
+            info["git_hash_short"] = git_hash[:8]
+
+            # Get branch
+            branch = subprocess.check_output(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=mcp_eval_path,
+                text=True,
+                stderr=subprocess.DEVNULL
+            ).strip()
+            info["branch"] = branch
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass
+
+        return info
+
     def _get_mcpproxy_git_info(self) -> Dict[str, Any]:
         """Get git hash and commit info for mcpproxy-go project."""
         import os
@@ -776,6 +817,7 @@ class FailureAwareScenarioRunner:
             "failure_analysis": {},
             "early_stopped": False,
             "mcpproxy_git_info": self.mcpproxy_git_info,
+            "mcp_eval_info": self.mcp_eval_info,  # Track mcp-eval version for stale baseline detection
             "mcp_validation": validation_results  # T046: Add validation results to metadata
         }
         

@@ -435,6 +435,8 @@ grep "8081" mcp_servers.json || echo "ERROR: Wrong port in config"
 - File-based (baselines/, scenarios/, comparison_results/, reports/) (006-fix-comparison-algorithm)
 - Python 3.11+ + FastMCP (MCP server framework), httpx (async HTTP client), claude-agent-sdk>=0.1.6, click>=8.2.1, pydantic>=2.11.7, rich>=14.1.0 (007-mcpproxy-control-server)
 - File-based (baselines/, scenarios/, reports/, detailed_log.json) (007-mcpproxy-control-server)
+- Python 3.11+ + claude-agent-sdk>=0.1.6, click>=8.2.1, pydantic>=2.11.7, rich>=14.1.0, anthropic (for LLM judge calls) (008-judge-agent-feedback-loop)
+- File-based JSON (`.judge/` directory for assessments, history, queue) (008-judge-agent-feedback-loop)
 
 ## Recent Changes
 - 004-aggregated-test-reports: Added Python 3.11+ + click (CLI), rich (console output), pydantic (data validation), existing html_reporter.py module

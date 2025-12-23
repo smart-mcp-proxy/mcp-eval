@@ -76,3 +76,6 @@ test_list_servers.py
 # Project-specific
 .specify/
 .mcp.json
+
+# Judge Agent working directory
+.judge/

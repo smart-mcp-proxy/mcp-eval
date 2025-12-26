@@ -1,10 +1,10 @@
 enabled: true
 name: "CLI Add Server and Disable Workflow"
-description: "User adds an upstream server without quarantine, verifies tools are indexed, then disables the server and verifies tools are no longer searchable"
+description: "User adds an upstream server, waits for indexing, searches for tools, disables server, and verifies tools are no longer searchable"
 config_file: "configs/minimal_config.json"
 user_intent: |
   I need you to help me test server management:
-  1. First, add a new MCP server called 'test-fetch' using Docker image 'mcp/fetch' WITHOUT quarantine (skip security quarantine)
+  1. First, add a new MCP server called 'test-fetch' using Docker image 'mcp/fetch'
   2. Wait 2 seconds for indexing, then search for 'fetch' tools to verify the server was indexed
   3. Then disable the 'test-fetch' server
   4. Wait 2 seconds, then search for 'fetch' tools again to confirm no results from the disabled server
@@ -18,7 +18,10 @@ expected_trajectory:
       protocol: "stdio"
       command: "docker"
       args_json: "[\"run\", \"-i\", \"--rm\", \"mcp/fetch\"]"
-      quarantined: false
+  - action: "wait_for_indexing"
+    tool: "Bash"
+    args:
+      command: "sleep 2"
   - action: "search_tools_after_add"
     tool: "mcp__mcpproxy__retrieve_tools"
     args:
@@ -29,6 +32,10 @@ expected_trajectory:
       operation: "update"
       name: "test-fetch"
       enabled: false
+  - action: "wait_after_disable"
+    tool: "Bash"
+    args:
+      command: "sleep 2"
   - action: "search_tools_after_disable"
     tool: "mcp__mcpproxy__retrieve_tools"
     args:
@@ -49,4 +56,3 @@ tags:
   - "cli_workflow"
   - "tool_indexing"
   - "enable_disable"
-  - "no_quarantine"

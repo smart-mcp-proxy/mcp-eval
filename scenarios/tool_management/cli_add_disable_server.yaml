@@ -18,6 +18,11 @@ expected_trajectory:
       protocol: "stdio"
       command: "docker"
       args_json: "[\"run\", \"-i\", \"--rm\", \"mcp/fetch\"]"
+  - action: "inspect_quarantine"
+    tool: "mcp__mcpproxy__quarantine_security"
+    args:
+      operation: "inspect_quarantined"
+      name: "test-fetch"
   - action: "wait_for_indexing"
     tool: "Bash"
     args:

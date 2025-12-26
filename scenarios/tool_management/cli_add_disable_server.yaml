@@ -1,0 +1,49 @@
+enabled: true
+name: "CLI Add Server and Disable Workflow"
+description: "User adds an upstream server via CLI, verifies tools are indexed, then disables the server and verifies tools are no longer searchable"
+config_file: "configs/minimal_config.json"
+user_intent: |
+  I need you to help me test server management:
+  1. First, add a new MCP server called 'test-fetch' using Docker image 'mcp/fetch'
+  2. Wait 2 seconds for indexing, then search for 'fetch' tools to verify the server was indexed
+  3. Then disable the 'test-fetch' server
+  4. Wait 2 seconds, then search for 'fetch' tools again to confirm no results from the disabled server
+
+expected_trajectory:
+  - action: "add_server"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "add"
+      name: "test-fetch"
+      protocol: "stdio"
+      command: "/usr/bin/docker"
+      args_json: "[\"run\", \"-i\", \"--rm\", \"mcp/fetch\"]"
+  - action: "search_tools_after_add"
+    tool: "mcp__mcpproxy__retrieve_tools"
+    args:
+      query: "fetch"
+  - action: "disable_server"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "patch"
+      name: "test-fetch"
+      patch_json: "{\"enabled\": false}"
+  - action: "search_tools_after_disable"
+    tool: "mcp__mcpproxy__retrieve_tools"
+    args:
+      query: "fetch"
+
+success_criteria:
+  - "test-fetch"
+  - "mcp__mcpproxy__upstream_servers"
+  - "mcp__mcpproxy__retrieve_tools"
+  - "add"
+  - "disabled"
+  - "enabled"
+  - "false"
+
+tags:
+  - "server_management"
+  - "cli_workflow"
+  - "tool_indexing"
+  - "enable_disable"

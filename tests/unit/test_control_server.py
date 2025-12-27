@@ -62,6 +62,27 @@ class TestControlRouteMapper:
         result = control_route_mapper(route, MCPType.TOOL)
         assert result == MCPType.TOOL
 
+    def test_includes_activity_endpoint(self):
+        """Test that /api/v1/activity is exposed."""
+        route = MagicMock(spec=HTTPRoute)
+        route.path = "/api/v1/activity"
+        result = control_route_mapper(route, MCPType.TOOL)
+        assert result == MCPType.TOOL
+
+    def test_includes_activity_export_endpoint(self):
+        """Test that /api/v1/activity/export is exposed."""
+        route = MagicMock(spec=HTTPRoute)
+        route.path = "/api/v1/activity/export"
+        result = control_route_mapper(route, MCPType.TOOL)
+        assert result == MCPType.TOOL
+
+    def test_includes_activity_detail_endpoint(self):
+        """Test that /api/v1/activity/{id} is exposed."""
+        route = MagicMock(spec=HTTPRoute)
+        route.path = "/api/v1/activity/{id}"
+        result = control_route_mapper(route, MCPType.TOOL)
+        assert result == MCPType.TOOL
+
     def test_excludes_mcp_endpoint(self):
         """Test that /mcp endpoint is excluded."""
         route = MagicMock(spec=HTTPRoute)

@@ -1,0 +1,39 @@
+# Activity Log Verification: Quarantine Operations Generate Activity Records
+# This scenario lists quarantined servers and verifies activity is logged
+
+enabled: true
+name: "Quarantine Change Generates Activity"
+description: "Verify that quarantine operations generate activity records"
+config_file: "configs/quarantine_config.json"
+user_intent: "List the quarantined servers and show me their status"
+
+expected_trajectory:
+  - action: "list_quarantined"
+    tool: "mcp__mcpproxy__quarantine_security"
+    args:
+      operation: "list_quarantined"
+  - action: "list_servers"
+    tool: "mcp__mcpproxy__upstream_servers"
+    args:
+      operation: "list"
+
+# User Role control actions - verify quarantine activity logged
+user_control_actions:
+  - trigger: "after_tool_2"
+    action: "verify_quarantine_activity"
+    tool: "api_v1_activity"
+    args:
+      limit: 10
+    expected_result:
+      success: true
+
+success_criteria:
+  - "mcp__mcpproxy__quarantine_security"
+  - "quarantine"
+  - "list"
+
+tags:
+  - "activity_log"
+  - "security"
+  - "quarantine"
+  - "control_actions"

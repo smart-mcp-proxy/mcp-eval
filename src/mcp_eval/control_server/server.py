@@ -40,6 +40,8 @@ def control_route_mapper(route: HTTPRoute, default_type: MCPType) -> MCPType | N
         "/api/v1/config",
         "/api/v1/servers",
         "/api/v1/status",
+        "/api/v1/activity",
+        "/api/v1/activity/export",
         "/healthz",
     }
 
@@ -51,6 +53,7 @@ def control_route_mapper(route: HTTPRoute, default_type: MCPType) -> MCPType | N
         "/api/v1/servers/{id}/unquarantine",
         "/api/v1/servers/{id}/enable",
         "/api/v1/servers/{id}/disable",
+        "/api/v1/activity/{id}",
     ]
 
     # Check exact matches

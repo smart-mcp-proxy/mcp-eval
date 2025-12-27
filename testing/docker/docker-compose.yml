@@ -25,6 +25,7 @@ services:
       - CLAUDE_CONFIG_DIR=/app/.claude
       # MCP Proxy settings
       - MCPPROXY_LOG_LEVEL=${LOG_LEVEL:-info}
+      - MCPPROXY_API_KEY=${MCPPROXY_API_KEY:-}
       - TEST_SESSION=${TEST_SESSION:-default}
       - TEST_PORT=${TEST_PORT:-8081}
     networks:

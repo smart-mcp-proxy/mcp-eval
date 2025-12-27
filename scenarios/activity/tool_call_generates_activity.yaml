@@ -1,0 +1,45 @@
+# Activity Log Verification: Tool Call Generates Activity Record
+# This scenario calls a tool and verifies the activity log recorded it
+
+enabled: true
+name: "Tool Call Generates Activity"
+description: "Verify that making a tool call generates an activity record"
+config_file: "configs/minimal_config.json"
+user_intent: "Call the echo tool on the everything-2 server with message 'activity-test' and confirm it worked"
+
+expected_trajectory:
+  - action: "discover_tool"
+    tool: "mcp__mcpproxy__retrieve_tools"
+    args:
+      query: "echo tool everything"
+  - action: "call_tool"
+    tool: "mcp__mcpproxy__call_tool"
+    args:
+      name: "everything-2:echo"
+      args_json: '{"message": "activity-test"}'
+
+# User Role control actions - verify activity was logged via REST API
+user_control_actions:
+  - trigger: "after_tool_2"
+    action: "verify_activity_logged"
+    tool: "api_v1_activity"
+    args:
+      type: "tool_call"
+      server: "everything-2"
+      limit: 5
+    expected_result:
+      success: true
+      contains:
+        - "echo"
+        - "everything-2"
+
+success_criteria:
+  - "mcp__mcpproxy__call_tool"
+  - "everything-2"
+  - "echo"
+  - "activity-test"
+
+tags:
+  - "activity_log"
+  - "tool_call"
+  - "control_actions"

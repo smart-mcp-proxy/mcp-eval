@@ -227,6 +227,7 @@ VALID_CONTROL_TOOL_PREFIXES = frozenset([
     "api_v1_config",
     "api_v1_servers",
     "api_v1_status",
+    "api_v1_activity",
     "healthz",
 ])
 

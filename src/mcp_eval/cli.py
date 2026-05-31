@@ -53,6 +53,14 @@ def cli():
     pass
 
 
+# Spec 065 D1 (evaluation foundation): datasets tooling + retrieval scorer.
+from .datasets.commands import datasets as _datasets_group  # noqa: E402
+from .retrieval.commands import retrieval_cmd as _retrieval_cmd  # noqa: E402
+
+cli.add_command(_datasets_group)
+cli.add_command(_retrieval_cmd)
+
+
 @cli.command()
 @click.option(
     "--scenario", 
